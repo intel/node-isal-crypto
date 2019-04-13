@@ -25,7 +25,11 @@
     {
       'target_name': 'isal_crypto',
       'include_dirs': [
-        "<!@(node -p \"require('node-addon-api').include\")"
+        "<!@(node -p \"require('node-addon-api').include\")",
+        '<(module_root_dir)/isa-l_crypto/include'
+      ],
+      'libraries': [
+        '<(module_root_dir)/isa-l_crypto/bin/isa-l_crypto.a'
       ],
       'dependencies': [
         'csdk',
