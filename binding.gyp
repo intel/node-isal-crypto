@@ -25,21 +25,17 @@
     {
       'target_name': 'isal_crypto',
       'include_dirs': [
-        "<!@(node -p \"require('node-addon-api').include\")",
         '<(module_root_dir)/isa-l_crypto/include'
       ],
       'libraries': [
         '<(module_root_dir)/isa-l_crypto/bin/isa-l_crypto.a'
       ],
       'dependencies': [
-        'csdk',
-        "<!@(node -p \"require('node-addon-api').gyp\")"
-      ],
-      'defines': [
-        'NAPI_DISABLE_CPP_EXCEPTIONS'
+        'csdk'
       ],
       'sources': [
-        'src/main.cc'
+        'src/main.c',
+        'src/bind_mh_sha256.c'
       ]
     }
   ]
