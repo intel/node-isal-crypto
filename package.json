@@ -1,0 +1,23 @@
+{
+  "name": "isa-l_crypto",
+  "version": "1.0.0",
+  "description": "Node.js bindings for the Intel(R) Intelligent Storage Acceleration Library Crypto Version",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/intel/node-isa-l_crypto.git"
+  },
+  "keywords": [
+    "crypto",
+    "intel"
+  ],
+  "author": "Gabriel Schulhof <gabriel.schulhof@intel.com>",
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/intel/node-isa-l_crypto/issues"
+  },
+  "homepage": "https://github.com/intel/node-isa-l_crypto#readme"
+}
