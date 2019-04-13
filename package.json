@@ -19,5 +19,9 @@
   "bugs": {
     "url": "https://github.com/intel/node-isa-l_crypto/issues"
   },
-  "homepage": "https://github.com/intel/node-isa-l_crypto#readme"
+  "homepage": "https://github.com/intel/node-isa-l_crypto#readme",
+  "dependencies": {
+    "bindings": "^1.5.0",
+    "node-addon-api": "^1.6.3"
+  }
 }
