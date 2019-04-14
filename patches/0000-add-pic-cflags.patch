@@ -1,0 +1,13 @@
+diff --git a/make.inc b/make.inc
+index 46295e1..8559056 100644
+--- a/make.inc
++++ b/make.inc
+@@ -53,7 +53,7 @@ DEBUG_yasm = -g dwarf2
+ DEBUG_nasm = -g
+ 
+ # Default arch= build options
+-CFLAGS_    = -Wall
++CFLAGS_    = -Wall -fPIC -DPIC
+ ASFLAGS_   = -f elf64
+ ARFLAGS_   = cr $@
+ STRIP_gcc  = strip -d -R .comment $@

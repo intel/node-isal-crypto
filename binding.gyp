@@ -13,11 +13,8 @@
             'isa-l_crypto/bin/isa-l_crypto.a'
           ],
           'action': [
-            'make',
-            '-C',
-            'isa-l_crypto',
-            '-f',
-            'Makefile.unx'
+            'node',
+            'build-scripts/build-isa-l.js'
           ]
         }
       ]
