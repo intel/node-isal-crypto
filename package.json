@@ -4,7 +4,7 @@
   "description": "Node.js bindings for the Intel(R) Intelligent Storage Acceleration Library Crypto Version",
   "main": "index.js",
   "scripts": {
-    "test": "npm test"
+    "test": "node test"
   },
   "repository": {
     "type": "git",
