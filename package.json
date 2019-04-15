@@ -4,7 +4,8 @@
   "description": "Node.js bindings for the Intel(R) Intelligent Storage Acceleration Library Crypto Version",
   "main": "index.js",
   "scripts": {
-    "test": "node test"
+    "test": "node test",
+    "clean": "git clean -xfd && git submodule foreach --recursive git clean -xfd && git submodule foreach --recursive git reset --hard && git submodule update --init --recursive"
   },
   "repository": {
     "type": "git",
