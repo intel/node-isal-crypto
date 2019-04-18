@@ -81,18 +81,18 @@ bind_mh_sha256_finalize(napi_env env, napi_callback_info info) {
 
 napi_value
 init_mh_sha256(napi_env env) {
-  napi_value exports, mh_sha256_context_size;
+  napi_value exports, sizeof_mh_sha256_ctx;
 
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_create_double(env,
                          sizeof(struct mh_sha256_ctx),
-                         &mh_sha256_context_size));
+                         &sizeof_mh_sha256_ctx));
 
   napi_property_descriptor bindings[] = {
     NAPI_DESCRIBE_BINDING(mh_sha256_init),
     NAPI_DESCRIBE_BINDING(mh_sha256_update),
     NAPI_DESCRIBE_BINDING(mh_sha256_finalize),
-    NAPI_DESCRIBE_VALUE(mh_sha256_context_size)
+    NAPI_DESCRIBE_VALUE(sizeof_mh_sha256_ctx)
   };
 
   NAPI_CALL_RETURN_UNDEFINED(env, napi_create_object(env, &exports));

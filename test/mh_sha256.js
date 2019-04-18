@@ -1,8 +1,8 @@
-module.exports = function(binding) {
+module.exports = function test_mh_sha256(binding) {
 
 const crypto = require('crypto');
 const assert = require('assert');
-const context = new ArrayBuffer(binding.mh_sha256_context_size);
+const context = new ArrayBuffer(binding.sizeof_mh_sha256_ctx);
 const input = 'The quick brown fox jumped over the lazy dog.';
 const expected = '06569176175fa86129926025b4d2c2c184095ad991177e8fe6db2b2797703ac9';
 
