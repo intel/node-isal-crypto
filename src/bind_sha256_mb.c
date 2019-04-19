@@ -1,5 +1,18 @@
 #include "common.h"
+#include "multi_buffer.h"
 #include "sha256_mb.h"
+
+static napi_value bind_hash_ctx_init(napi_env env, napi_callback_info info) {
+  napi_value buffer;
+  size_t argc = 1;
+  void* context;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &buffer, NULL, NULL));
+  NAPI_CALL(env, napi_get_arraybuffer_info(env, buffer, &context, NULL));
+  hash_ctx_init((SHA256_HASH_CTX*)context);
+
+  return NULL;
+}
 
 static napi_value
 bind_sha256_ctx_mgr_init(napi_env env, napi_callback_info info) {
@@ -127,6 +140,7 @@ init_sha256_mb(napi_env env) {
                          &sizeof_SHA256_HASH_CTX));
 
   napi_property_descriptor bindings[] = {
+    NAPI_DESCRIBE_BINDING(hash_ctx_init),
     NAPI_DESCRIBE_BINDING(sha256_ctx_mgr_init),
     NAPI_DESCRIBE_BINDING(sha256_ctx_mgr_submit),
     NAPI_DESCRIBE_BINDING(sha256_ctx_mgr_flush),

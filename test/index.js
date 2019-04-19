@@ -16,7 +16,7 @@ Object.keys(isal).forEach((item) => {
       assert.strictEqual(anError.code, 'MODULE_NOT_FOUND');
     }
     if (subExportTestPath) {
-      require(subExportTestPath)(isal[item]);
+      require(subExportTestPath)(isal);
     } else {
       missingTests.push(item);
     }
