@@ -1,21 +1,11 @@
 module.exports = function test_mh_sha256({mh_sha256}) {
 
 const assert = require('assert');
+const stringToUint = require('./lib/stringToUint');
+
 const context = new ArrayBuffer(mh_sha256.sizeof_mh_sha256_ctx);
 const input = 'The quick brown fox jumped over the lazy dog.';
 const expected = '06569176175fa86129926025b4d2c2c184095ad991177e8fe6db2b2797703ac9';
-
-// Conversion copied from:
-// https://stackoverflow.com/questions/17191945/conversion-between-utf-8-arraybuffer-and-string#answer-17192845
-function stringToUint(string) {
-    var string = unescape(encodeURIComponent(string)),
-        charList = string.split(''),
-        uintArray = [];
-    for (var i = 0; i < charList.length; i++) {
-        uintArray.push(charList[i].charCodeAt(0));
-    }
-    return new Uint8Array(uintArray);
-}
 
 assert.strictEqual(mh_sha256.mh_sha256_init(context), 0);
 assert.strictEqual(
