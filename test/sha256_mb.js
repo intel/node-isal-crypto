@@ -1,26 +1,53 @@
 module.exports = function test_sha256_mb(isal) {
+const assert = require('assert');
+const stringToUint = require('./lib/stringToUint');
 
 const sha256_mb = isal.sha256_mb;
-const assert = require('assert');
-const context_manager = new ArrayBuffer(sha256_mb.sizeof_SHA256_HASH_CTX_MGR);
 const input = 'The quick brown fox jumped over the lazy dog.';
 const expected = '68b1282b91de2c054c36629cb8dd447f12f096d3e3c587978dc2248444633483';
 
-// Conversion copied from:
-// https://stackoverflow.com/questions/17191945/conversion-between-utf-8-arraybuffer-and-string#answer-17192845
-function stringToUint(string) {
-    var string = unescape(encodeURIComponent(string)),
-        charList = string.split(''),
-        uintArray = [];
-    for (var i = 0; i < charList.length; i++) {
-        uintArray.push(charList[i].charCodeAt(0));
-    }
-    return new Uint8Array(uintArray);
+function digestToString(digest) {
+  return Array.prototype.map.call(new Uint32Array(context.digest),
+    (word) => ('00000000' + word.toString(16)).slice(-8)).join('');
 }
 
-sha256_mb.sha256_ctx_mgr_init(context_manager);
-let context = new ArrayBuffer(sha256_mb.sizeof_SHA256_HASH_CTX);
-sha256_mb.hash_ctx_init(context);
-// let resulting_context = sha256_mb.sha256_ctx_mgr_submit(context_manager,
-//   context, stringToUint(input).buffer, 
+const manager = new sha256_mb.Manager();
+const context = new sha256_mb.Context();
+
+// Test simple operation
+assert.strictEqual(digestToString(context.digest),
+  '0000000000000000000000000000000000000000000000000000000000000000');
+
+manager.submit(context, stringToUint(input).buffer,
+  isal.multi_buffer.HASH_CTX_FLAG.HASH_ENTIRE);
+
+while (!context.complete) {
+  manager.flush();
+}
+
+assert.strictEqual(digestToString(context.digest), expected);
+assert.strictEqual(context.complete, true);
+assert.strictEqual(context.manager, undefined);
+
+// Test multi-step operation
+manager.submit(context, stringToUint(input.substr(0, 8)).buffer,
+  isal.multi_buffer.HASH_CTX_FLAG.HASH_FIRST);
+assert.strictEqual(context.complete, false);
+
+for (let Nix = 8; Nix < input.length; Nix += 8) {
+  manager.submit(context, stringToUint(input.substr(Nix, 8)).buffer,
+    isal.multi_buffer.HASH_CTX_FLAG.HASH_UPDATE);
+  assert.strictEqual(context.complete, false);
+  assert.strictEqual(context.manager, manager);
+}
+manager.submit(context, new ArrayBuffer(0),
+  isal.multi_buffer.HASH_CTX_FLAG.HASH_LAST);
+while (!context.complete) {
+  manager.flush();
+}
+
+assert.strictEqual(digestToString(context.digest), expected);
+assert.strictEqual(context.complete, true);
+assert.strictEqual(context.manager, undefined);
+
 };

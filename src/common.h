@@ -13,6 +13,15 @@
     assert(status == napi_ok && "Failed to throw error");          \
   } while(0)
 
+#define NAPI_ASSERT(env, condition, message)                     \
+  do {                                                           \
+    if (!(condition)) {                                          \
+      napi_status status = napi_throw_error((env), "", message); \
+      assert(status == napi_ok && "Failed to throw error");      \
+      return NULL;                                               \
+    }                                                            \
+  } while(0)
+
 #define NAPI_CALL_BLOCK(env, call, returnBlock)                      \
   do {                                                               \
     napi_status status = (call);                                     \
