@@ -30,6 +30,9 @@
       'dependencies': [
         'csdk'
       ],
+      'cflags': [
+        '-Wall'
+      ],
       'sources': [
         'src/bind_mh_sha256.c',
         'src/bind_multi_buffer.c',
