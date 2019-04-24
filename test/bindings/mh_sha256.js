@@ -1,7 +1,7 @@
 module.exports = function test_mh_sha256({mh_sha256}) {
 
 const assert = require('assert');
-const stringToUint = require('./lib/stringToUint');
+const stringToUint = require('../lib/stringToUint');
 
 const context = new ArrayBuffer(mh_sha256.sizeof_mh_sha256_ctx);
 const input = 'The quick brown fox jumped over the lazy dog.';

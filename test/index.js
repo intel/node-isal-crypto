@@ -11,7 +11,7 @@ Object.keys(isal).forEach((item) => {
     // Find a test named after `item` and, if found, run it.
     let subExportTestPath = undefined;
     try {
-      subExportTestPath = require.resolve(path.join(__dirname, item));
+      subExportTestPath = require.resolve(path.join(__dirname, 'bindings', item));
     } catch (anError) {
       assert.strictEqual(anError.code, 'MODULE_NOT_FOUND');
     }

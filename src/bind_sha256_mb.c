@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include "common.h"
 #include "multi_buffer.h"
@@ -87,8 +88,6 @@ Context(napi_env env, napi_callback_info info) {
   });
 
   hash_ctx_init(&ctx->base);
-  ctx->js_manager = NULL;
-  ctx->js_self = NULL;
   return NULL;
 }
 
@@ -194,6 +193,8 @@ Manager_submit(napi_env env, napi_callback_info info) {
   JSSHA256HashContext* context;
   void* data;
   size_t length;
+  size_t byte_offset;
+  napi_typedarray_type typedarray_type;
   HASH_CTX_FLAG flag;
 
   // TODO (gabrielschulhof): Verify that argv[0] is indeed an instance of
@@ -208,9 +209,18 @@ Manager_submit(napi_env env, napi_callback_info info) {
 
   NAPI_CALL(env, napi_unwrap(env, argv[0], (void**)&context));
 
-  // TODO (gabrielschulhof): Verify that argv[1] is indeed an ArrayBuffer.
+  // TODO (gabrielschulhof): Verify that argv[1] is indeed a typed array.
+  NAPI_CALL(env, napi_get_typedarray_info(env,
+                                          argv[1],
+                                          &typedarray_type,
+                                          &length,
+                                          &data,
+                                          NULL,
+                                          &byte_offset));
 
-  NAPI_CALL(env, napi_get_arraybuffer_info(env, argv[1], &data, &length));
+  NAPI_ASSERT(env,
+              typedarray_type == napi_uint8_array,
+              "data must be a Uint8Array");
 
   NAPI_CALL(env, napi_get_value_uint32(env, argv[2], (uint32_t*)&flag));
 
@@ -236,7 +246,7 @@ Manager_submit(napi_env env, napi_callback_info info) {
   return js_context_from_incoming_context(env,
       sha256_ctx_mgr_submit(&manager->base,
                             &context->base,
-                            data,
+                            (void*)((uint8_t*)data + byte_offset),
                             (uint32_t)length,
                             flag));
 }
