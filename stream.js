@@ -18,7 +18,7 @@ class ContextManager {
     this._contextRequestors = [];
   }
 
-  requestContext({callback, releaseCallback}) {
+  requestContext({ callback, releaseCallback }) {
     if (this._availableContexts.length > 0) {
       process.nextTick(callback,
         Object.assign(this._availableContexts.shift(), {
