@@ -84,7 +84,7 @@ class ContextManager {
 class SHA256MBHashStream extends Duplex {
   constructor(options) {
     super(options);
-    this.firstChunk = true;
+    this._firstChunk = true;
   }
 
   // TODO (gabrielschulhof): _read() takes a parameter `size`. What if the
@@ -119,8 +119,8 @@ class SHA256MBHashStream extends Duplex {
 
     this._requestContext((context) => {
       ContextManager.singleton().submit(context, chunk,
-        this.firstChunk ? HASH_FIRST : HASH_UPDATE, () => {
-          this.firstChunk = false;
+        this._firstChunk ? HASH_FIRST : HASH_UPDATE, () => {
+          this._firstChunk = false;
           callback();
         });
     });
