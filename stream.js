@@ -18,14 +18,15 @@ class ContextManager {
     this._contextRequestors = [];
   }
 
-  requestContext({callback}) {
+  requestContext({callback, releaseCallback}) {
     if (this._availableContexts.length > 0) {
       process.nextTick(callback,
         Object.assign(this._availableContexts.shift(), {
-          index: this._contextIndex++
+          index: this._contextIndex++,
+          _releaseCallback: releaseCallback
         }));
     } else {
-      this._contextRequestors.push(callback);
+      this._contextRequestors.push(arguments[0]);
     }
   }
 
@@ -40,7 +41,10 @@ class ContextManager {
         context._releaseCallback(context);
         context._releaseCallback = null;
         if (this._contextRequestors.length > 0) {
-          process.nextTick(this._contextRequestors.shift(), context);
+          const request = this._contextRequestors.shift();
+          process.nextTick(request.callback, Object.assign(context, {
+            _releaseCallback: request.releaseCallback
+          }));
         } else {
           this._availableContexts.push(context);
         }
@@ -55,10 +59,7 @@ class ContextManager {
     }
   }
 
-  submit(context, buffer, flag, releaseCallback) {
-    if (!context._releaseCallback && releaseCallback) {
-      context._releaseCallback = releaseCallback;
-    }
+  submit(context, buffer, flag) {
     return this._maybeComplete(this._manager.submit(context, buffer, flag));
   }
 
@@ -94,16 +95,17 @@ class SHA256MBHashStream extends Duplex {
         callback: (context) => {
           this._context = context;
           callback(context);
-        }
+        },
+        releaseCallback: this._releaseCallback.bind(this)
       });
     }
   }
 
-  _submitWhenNotProcessing(context, chunk, flag, callback, releaseCallback) {
+  _submitWhenNotProcessing(context, chunk, flag, callback) {
     const submit = () => {
       ContextManager
         .singleton()
-        .submit(context, chunk, flag, releaseCallback);
+        .submit(context, chunk, flag);
       this.firstChunk = false;
       if (callback) {
         callback();
@@ -128,15 +130,18 @@ class SHA256MBHashStream extends Duplex {
     });
   }
 
+  _releaseCallback(context) {
+    // Clone the digest here because this context will be reused and its
+    // digest property points to memory held as part of the context.
+    this._digest = context.digest.slice(0);
+    this._finalCallback();
+  }
+
   _final(callback) {
+    this._finalCallback = callback;
     this._requestContext((context) => {
       this._submitWhenNotProcessing(context, new Uint8Array(0), HASH_LAST,
-        null, () => {
-          // Clone the digest here because this context will be reused and its
-          // digest property points to memory held as part of the context.
-          this._digest = context.digest.slice(0);
-          callback();
-        });
+        null);
     });
   }
 }
