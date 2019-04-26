@@ -11,7 +11,7 @@ class ContextManager {
     this._availableContexts = [];
     for (let idx = 0; idx < LANES; idx++) {
       this._availableContexts.push(Object.assign(new sha256_mb.Context(), {
-        releaseCallback: null
+        _releaseCallback: null
       }));
     }
     this._immediate = null;
@@ -36,9 +36,9 @@ class ContextManager {
         context._whenProcessed = null;
         whenProcessed();
       }
-      if (context.complete && context.releaseCallback) {
-        context.releaseCallback(context);
-        context.releaseCallback = null;
+      if (context.complete && context._releaseCallback) {
+        context._releaseCallback(context);
+        context._releaseCallback = null;
         if (this._contextRequestors.length > 0) {
           process.nextTick(this._contextRequestors.shift(), context);
         } else {
@@ -56,8 +56,8 @@ class ContextManager {
   }
 
   submit(context, buffer, flag, releaseCallback) {
-    if (!context.releaseCallback && releaseCallback) {
-      context.releaseCallback = releaseCallback;
+    if (!context._releaseCallback && releaseCallback) {
+      context._releaseCallback = releaseCallback;
     }
     return this._maybeComplete(this._manager.submit(context, buffer, flag));
   }
