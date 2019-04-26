@@ -1,3 +1,4 @@
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "common.h"
@@ -92,8 +93,8 @@ Context(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-/*static napi_value
-Context_dump(napi_env env, napi_callback_info info) {
+static napi_value
+Context_reset(napi_env env, napi_callback_info info) {
   napi_value this;
   JSSHA256HashContext* context;
 
@@ -101,8 +102,14 @@ Context_dump(napi_env env, napi_callback_info info) {
 
   NAPI_CALL(env, napi_unwrap(env, this, (void**)&context));
 
+  assert(context->js_self == NULL && "context self-reference must be NULL upon reset");
+  assert(context->js_manager == NULL && "context manager reference must be NULL upon reset");
+
+  memset(&context->base, 0, sizeof(context->base));
+  hash_ctx_init(&context->base);
+
   return NULL;
-}*/
+}
 
 // Getter for the JS Context instance's `complete` property.
 static napi_value
@@ -320,16 +327,16 @@ init_sha256_mb(napi_env env) {
       napi_enumerable,
       NULL
     },
-/*    {
-      "dump",
+    {
+      "reset",
       NULL,
-      Context_dump,
+      Context_reset,
       NULL,
       NULL,
       NULL,
       napi_enumerable,
       NULL
-    },*/
+    },
     { "manager",
       NULL,
       NULL,

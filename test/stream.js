@@ -17,9 +17,9 @@ const interval = setInterval(() => {
     });
   } else {
     clearInterval(interval);
-    console.log(JSON.stringify(hashes, null, 4));
   }
 }, 0);
 
-
-
+process.on('exit', () => {
+  console.log(JSON.stringify(hashes, null, 4));
+});
