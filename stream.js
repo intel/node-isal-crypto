@@ -4,10 +4,6 @@ const { Duplex } = require('stream');
 const sha256_mb = isal.sha256_mb;
 const LANES = 32;
 
-function debug(message) {
-//  console.log(message);
-}
-
 class ContextManager {
   constructor() {
     this._contextIndex = 0;
@@ -17,7 +13,6 @@ class ContextManager {
       this._availableContexts.push(Object.assign(new sha256_mb.Context(), {
         releaseCallback: null
       }));
-      debug(JSON.stringify(this._availableContexts[idx], null, 4));
     }
     this._immediate = null;
     this._contextRequestors = [];
@@ -25,25 +20,16 @@ class ContextManager {
 
   requestContext(callback) {
     if (this._availableContexts.length > 0) {
-      process.nextTick((context) => {
-        debug('manager: requestContext: nextTick: assigning context ' +
-          context.index);
-        callback(context);
-      }, Object.assign(this._availableContexts.shift(), {
-        index: this._contextIndex++
-      }));
+      process.nextTick(callback,
+        Object.assign(this._availableContexts.shift(), {
+          index: this._contextIndex++
+        }));
     } else {
       this._contextRequestors.push(callback);
     }
   }
 
   _maybeComplete(context) {
-    debug('_maybeComplete: ' +
-      'context: ' + context + ', ' +
-      'context.processing: ' + (context ? context.processing : 'N/A') + ', ' +
-      'context.complete: ' + (context ? context.complete : 'N/A') + ', ' +
-      'context.index: ' + (context ? context.index : 'N/A') + ', ' +
-      'context.releaseCallback: ' + (context ? context.releaseCallback : 'N/A'));
     if (context) {
       if (!context.complete && !context.processing && context._whenProcessed) {
         const whenProcessed = context._whenProcessed;
@@ -56,22 +42,15 @@ class ContextManager {
         if (this._contextRequestors.length > 0) {
           process.nextTick(this._contextRequestors.shift(), context);
         } else {
-          debug('_maybeComplete: pushing context ' + JSON.stringify(context, null, 4) +
-            ' back to availables');
           this._availableContexts.push(context);
         }
       }
     }
 
     if (this._availableContexts.length < LANES && this._immediate === null) {
-      debug('_maybeComplete: adding immediate');
       this._immediate = setImmediate(() => {
-        debug('_maybeComplete: immediate: Entering');
         this._immediate = null;
-        this._maybeComplete(((result) => {
-          debug('manager: flush: result from native: ' + JSON.stringify(result, null, 4));
-          return result;
-        })(this._manager.flush()));
+        this._maybeComplete(this._manager.flush());
       });
     }
   }
@@ -80,10 +59,7 @@ class ContextManager {
     if (!context.releaseCallback && releaseCallback) {
       context.releaseCallback = releaseCallback;
     }
-    return this._maybeComplete(((result) => {
-      debug('manager: submit for context ' + context.index + ': result from native: ' + JSON.stringify(result, null, 4));
-      return result;
-    })(this._manager.submit(context, buffer, flag)));
+    return this._maybeComplete(this._manager.submit(context, buffer, flag));
   }
 
   static singleton() {
@@ -144,8 +120,6 @@ class SHA256MBHashStream extends Duplex {
       return;
     }
 
-    debug('_write: requesting context: this._context is ' +
-      JSON.stringify(this._context, null, 4));
     this._requestContext((context) => {
       this._submitWhenNotProcessing(context, chunk,
         this.firstChunk ? HASH_FIRST : HASH_UPDATE, callback);
@@ -154,7 +128,6 @@ class SHA256MBHashStream extends Duplex {
 
   _final(callback) {
     this._requestContext((context) => {
-      debug('_final: submitting last for context ' + JSON.stringify(context, null, 4));
       this._submitWhenNotProcessing(context, new Uint8Array(0), HASH_LAST,
         null, () => {
           // Clone the digest here because this context will be reused and its
