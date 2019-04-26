@@ -1,5 +1,4 @@
 #include <string.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include "common.h"
 #include "multi_buffer.h"
@@ -231,7 +230,6 @@ Manager_submit(napi_env env, napi_callback_info info) {
   JSSHA256HashContext* context;
   void* data;
   size_t length;
-  size_t byte_offset;
   napi_typedarray_type typedarray_type;
   HASH_CTX_FLAG flag;
 
@@ -254,7 +252,7 @@ Manager_submit(napi_env env, napi_callback_info info) {
                                           &length,
                                           &data,
                                           NULL,
-                                          &byte_offset));
+                                          NULL));
 
   NAPI_ASSERT(env,
               typedarray_type == napi_uint8_array,
@@ -284,7 +282,7 @@ Manager_submit(napi_env env, napi_callback_info info) {
   return js_context_from_incoming_context(env,
       sha256_ctx_mgr_submit(&manager->base,
                             &context->base,
-                            (void*)((uint8_t*)data + byte_offset),
+                            (void*)((uint8_t*)data),
                             (uint32_t)length,
                             flag));
 }

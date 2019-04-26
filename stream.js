@@ -2,7 +2,7 @@ const isal = require('.');
 const{ HASH_FIRST, HASH_LAST, HASH_UPDATE } = isal.multi_buffer.HASH_CTX_FLAG;
 const { Duplex } = require('stream');
 const sha256_mb = isal.sha256_mb;
-const LANES = 32;
+const LANES = 1;
 
 class ContextManager {
   constructor() {
@@ -33,6 +33,12 @@ class ContextManager {
 
   _maybeComplete(context) {
     if (context) {
+      if (context._callback) {
+        context._thisBuffer = null;
+        const callback = context._callback;
+        context._callback = null;
+        callback();
+      }
       if (!context.complete && !context.processing && context._whenProcessed) {
         const whenProcessed = context._whenProcessed;
         context._whenProcessed = null;
@@ -61,10 +67,9 @@ class ContextManager {
 
   submit(context, buffer, flag, callback) {
     const realSubmit = () => {
+      context._thisBuffer = buffer;
+      context._callback = callback;
       this._maybeComplete(this._manager.submit(context, buffer, flag));
-      if (callback) {
-        callback();
-      }
     };
     if (context.processing) {
       context._whenProcessed = realSubmit;
