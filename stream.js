@@ -59,8 +59,18 @@ class ContextManager {
     }
   }
 
-  submit(context, buffer, flag) {
-    return this._maybeComplete(this._manager.submit(context, buffer, flag));
+  submit(context, buffer, flag, callback) {
+    const realSubmit = () => {
+      this._maybeComplete(this._manager.submit(context, buffer, flag));
+      if (callback) {
+        callback();
+      }
+    };
+    if (context.processing) {
+      context._whenProcessed = realSubmit;
+    } else {
+      realSubmit();
+    }
   }
 
   static singleton() {
@@ -101,23 +111,6 @@ class SHA256MBHashStream extends Duplex {
     }
   }
 
-  _submitWhenNotProcessing(context, chunk, flag, callback) {
-    const submit = () => {
-      ContextManager
-        .singleton()
-        .submit(context, chunk, flag);
-      this.firstChunk = false;
-      if (callback) {
-        callback();
-      }
-    };
-    if (context.processing) {
-      context._whenProcessed = submit;
-    } else {
-      submit();
-    }
-  }
-
   _write(chunk, encoding, callback) {
     if (!chunk instanceof Buffer) {
       this.emit('error', new TypeError('input must be a Buffer'));
@@ -125,8 +118,11 @@ class SHA256MBHashStream extends Duplex {
     }
 
     this._requestContext((context) => {
-      this._submitWhenNotProcessing(context, chunk,
-        this.firstChunk ? HASH_FIRST : HASH_UPDATE, callback);
+      ContextManager.singleton().submit(context, chunk,
+        this.firstChunk ? HASH_FIRST : HASH_UPDATE, () => {
+          this.firstChunk = false;
+          callback();
+        });
     });
   }
 
@@ -140,8 +136,7 @@ class SHA256MBHashStream extends Duplex {
   _final(callback) {
     this._finalCallback = callback;
     this._requestContext((context) => {
-      this._submitWhenNotProcessing(context, new Uint8Array(0), HASH_LAST,
-        null);
+      ContextManager.singleton().submit(context, new Uint8Array(0), HASH_LAST);
     });
   }
 }
