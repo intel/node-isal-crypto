@@ -20,7 +20,6 @@ class ContextManager {
     process.nextTick(callback,
       Object.assign(context, {
         _releaseCallback: releaseCallback,
-        hasReleaseCallback: undefined
       }));
   }
 
@@ -106,7 +105,8 @@ class SHA256MBHashStream extends Duplex {
         callback: (context) => {
           this._context = context;
           callback(context);
-        }
+        },
+        releaseCallback: this._releaseCallback.bind(this)
       });
     }
   }
@@ -136,8 +136,6 @@ class SHA256MBHashStream extends Duplex {
   _final(callback) {
     this._finalCallback = callback;
     this._requestContext((context) => {
-      context.hasReleaseCallback = true;
-      context._releaseCallback = this._releaseCallback.bind(this);
       ContextManager.singleton().submit(context, new Uint8Array(0), HASH_LAST);
     });
   }
