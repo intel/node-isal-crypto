@@ -6,7 +6,6 @@ const LANES = 32;
 
 class ContextManager {
   constructor() {
-    this._contextIndex = 0;
     this._manager = new sha256_mb.Manager();
     this._availableContexts = [];
     for (let idx = 0; idx < LANES; idx++) {
@@ -22,7 +21,6 @@ class ContextManager {
     if (this._availableContexts.length > 0) {
       process.nextTick(callback,
         Object.assign(this._availableContexts.shift(), {
-          index: this._contextIndex++,
           _releaseCallback: releaseCallback
         }));
     } else {
