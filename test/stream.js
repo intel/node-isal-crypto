@@ -12,21 +12,10 @@ let count = 0;
 const interval = setInterval(() => {
   if (count++ < 100) {
     const input = fs.createReadStream(path.join(__dirname, 'input.txt'));
-    let stream;
-    if (doNodeJS) {
-      stream = crypto.createHash('sha256');
-    } else {
-      stream = new SHA256MBStream();
-    }
+    const stream = (doNodeJS ? crypto.createHash('sha256') : new SHA256MBStream());
     const x = input.pipe(stream);
     x.on('finish', () => {
-      let key;
-      if (doNodeJS) {
-        key = x.read().toString('hex');
-      } else {
-        key = digestToString(x.read().buffer);
-      }
-      hashes[key] = true;
+      hashes[x.read().toString('hex')] = true;
     });
   } else {
     clearInterval(interval);

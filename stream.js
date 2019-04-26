@@ -131,7 +131,7 @@ class SHA256MBHashStream extends Duplex {
   // buffer size is 16 KiB.
   _read(size) {
     if (this._digest) {
-      this.push(new Uint8Array(this._digest));
+      this.push(this._digest);
     }
   }
 

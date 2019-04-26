@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "common.h"
@@ -163,16 +164,28 @@ static napi_value
 Context_digest(napi_env env, napi_callback_info info) {
   napi_value this, result = NULL;
   JSSHA256HashContext* context;
+  int idx;
 
   NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &this, NULL));
 
   NAPI_CALL(env, napi_unwrap(env, this, (void**)&context));
 
+  // Get rid of the byte order.
+  for (idx = 0; idx < SHA256_DIGEST_NWORDS; idx++) {
+    unsigned char transform[4] = { 0 };
+    uint32_t source = context->base.job.result_digest[idx];
+    transform[0] = (source >> 24) & 0xff;
+    transform[1] = (source >> 16) & 0xff;
+    transform[2] = (source >> 8) & 0xff;
+    transform[3] = source & 0xff;
+    context->base.job.result_digest[idx] = *(uint32_t*)transform;
+  }
+
   if (hash_ctx_complete(&context->base)) {
 
-    NAPI_CALL(env, napi_create_external_arraybuffer(env,
-        context->base.job.result_digest,
+    NAPI_CALL(env, napi_create_external_buffer(env,
         SHA256_DIGEST_NWORDS * sizeof(*(context->base.job.result_digest)),
+        ((uint8_t*)(context->base.job.result_digest)),
         NULL,
         NULL,
         &result));
