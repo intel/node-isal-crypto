@@ -303,7 +303,7 @@ Manager_flush(napi_env env, napi_callback_info info) {
 // Expose the above bindings to JS.
 napi_value
 init_sha256_mb(napi_env env) {
-  napi_value exports, context_class, manager_class;
+  napi_value exports, context_class, manager_class, js_max_lanes;
 
   napi_property_descriptor context_props[] = {
     {
@@ -382,9 +382,22 @@ init_sha256_mb(napi_env env) {
                         manager_props,
                         &manager_class));
 
+  NAPI_CALL_RETURN_UNDEFINED(env,
+      napi_create_double(env, SHA256_MAX_LANES, &js_max_lanes));
+
   napi_property_descriptor addon_props[] = {
     { "Context", NULL, NULL, NULL, NULL, context_class, napi_enumerable, NULL },
-    { "Manager", NULL, NULL, NULL, NULL, manager_class, napi_enumerable, NULL }
+    { "Manager", NULL, NULL, NULL, NULL, manager_class, napi_enumerable, NULL },
+    {
+      "SHA256_MAX_LANES",
+      NULL,
+      NULL,
+      NULL,
+      NULL,
+      js_max_lanes,
+      napi_enumerable,
+      NULL
+    },
   };
 
   NAPI_CALL_RETURN_UNDEFINED(env, napi_create_object(env, &exports));

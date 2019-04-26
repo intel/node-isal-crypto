@@ -2,7 +2,7 @@ const isal = require('.');
 const{ HASH_FIRST, HASH_LAST, HASH_UPDATE } = isal.multi_buffer.HASH_CTX_FLAG;
 const { Duplex } = require('stream');
 const sha256_mb = isal.sha256_mb;
-const LANES = 1;
+const LANES = isal.sha256_mb.SHA256_MAX_LANES;
 
 class ContextManager {
   constructor() {
