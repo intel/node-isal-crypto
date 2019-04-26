@@ -12,11 +12,12 @@
 //   readonly bool complete;
 //   readonly bool processing;
 //   readonly ArrayBuffer digest;
+//   readonly void reset();
 // };
 //
 // class Manager {
-//   Context submit(Context, ArrayBuffer, flag);
-//   Context flush();
+//   readonly Context submit(Context, Uint8Array, flag);
+//   readonly Context flush();
 // };
 
 typedef struct {
