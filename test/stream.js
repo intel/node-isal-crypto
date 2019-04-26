@@ -5,15 +5,28 @@ const expected = '1feba561bf9106f3cbf6d78dd0c6056eef6ab59f15a30e64530ea6aea91d4e
 const digestToString = require('./lib/digestToString');
 const assert = require('assert');
 const hashes = {};
+const crypto = require('crypto');
+const doNodeJS = (process.argv[2] === 'nodejs');
 
 let count = 0;
 const interval = setInterval(() => {
   if (count++ < 100) {
-    const stream = new SHA256MBStream();
     const input = fs.createReadStream(path.join(__dirname, 'input.txt'));
+    let stream;
+    if (doNodeJS) {
+      stream = crypto.createHash('sha256');
+    } else {
+      stream = new SHA256MBStream();
+    }
     const x = input.pipe(stream);
     x.on('finish', () => {
-      hashes[digestToString(x.read().buffer)] = true;
+      let key;
+      if (doNodeJS) {
+        key = x.read().toString('hex');
+      } else {
+        key = digestToString(x.read().buffer);
+      }
+      hashes[key] = true;
     });
   } else {
     clearInterval(interval);
