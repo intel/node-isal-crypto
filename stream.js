@@ -18,7 +18,7 @@ class ContextManager {
     this._contextRequestors = [];
   }
 
-  requestContext(callback) {
+  requestContext({callback}) {
     if (this._availableContexts.length > 0) {
       process.nextTick(callback,
         Object.assign(this._availableContexts.shift(), {
@@ -90,9 +90,11 @@ class SHA256MBHashStream extends Duplex {
     if (this._context) {
       process.nextTick(callback, this._context);
     } else {
-      ContextManager.singleton().requestContext((context) => {
-        this._context = context;
-        callback(context);
+      ContextManager.singleton().requestContext({
+        callback: (context) => {
+          this._context = context;
+          callback(context);
+        }
       });
     }
   }
