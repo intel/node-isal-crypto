@@ -2,44 +2,76 @@ const isal = require('.');
 const{ HASH_FIRST, HASH_LAST, HASH_UPDATE } = isal.multi_buffer.HASH_CTX_FLAG;
 const { Duplex } = require('stream');
 const sha256_mb = isal.sha256_mb;
-const LANES = 4;
+const LANES = 32;
+
+function debug(message) {
+//  console.log(message);
+}
 
 class ContextManager {
   constructor() {
+    this._contextIndex = 0;
     this._manager = new sha256_mb.Manager();
-    this.availableContexts = [];
+    this._availableContexts = [];
     for (let idx = 0; idx < LANES; idx++) {
-      this.availableContexts.push(Object.assign(new sha256_mb.Context(), {
+      this._availableContexts.push(Object.assign(new sha256_mb.Context(), {
         releaseCallback: null
       }));
+      debug(JSON.stringify(this._availableContexts[idx], null, 4));
     }
-    this.immediate = null;
-    this.contextRequestors = [];
+    this._immediate = null;
+    this._contextRequestors = [];
   }
 
   requestContext(callback) {
-    if (this.availableContexts.length > 0) {
-      process.nextTick(callback, this.availableContexts.shift());
+    if (this._availableContexts.length > 0) {
+      process.nextTick((context) => {
+        debug('manager: requestContext: nextTick: assigning context ' +
+          context.index);
+        callback(context);
+      }, Object.assign(this._availableContexts.shift(), {
+        index: this._contextIndex++
+      }));
     } else {
-      this.contextRequestors.push(callback);
+      this._contextRequestors.push(callback);
     }
   }
 
   _maybeComplete(context) {
-    if (context && context.complete && context.releaseCallback) {
-      context.releaseCallback(context);
-      context.releaseCallback = null;
-      if (this.contextRequestors.length > 0) {
-        process.nextTick(this.contextRequestors.shift(), context);
-      } else {
-        this.availableContexts.push(context);
+    debug('_maybeComplete: ' +
+      'context: ' + context + ', ' +
+      'context.processing: ' + (context ? context.processing : 'N/A') + ', ' +
+      'context.complete: ' + (context ? context.complete : 'N/A') + ', ' +
+      'context.index: ' + (context ? context.index : 'N/A') + ', ' +
+      'context.releaseCallback: ' + (context ? context.releaseCallback : 'N/A'));
+    if (context) {
+      if (!context.complete && !context.processing && context._whenProcessed) {
+        const whenProcessed = context._whenProcessed;
+        context._whenProcessed = null;
+        whenProcessed();
+      }
+      if (context.complete && context.releaseCallback) {
+        context.releaseCallback(context);
+        context.releaseCallback = null;
+        if (this._contextRequestors.length > 0) {
+          process.nextTick(this._contextRequestors.shift(), context);
+        } else {
+          debug('_maybeComplete: pushing context ' + JSON.stringify(context, null, 4) +
+            ' back to availables');
+          this._availableContexts.push(context);
+        }
       }
     }
 
-    if (this.availableContexts.length < LANES && this.immediate === null) {
-      this.immediate = setImmediate(() => {
-        this.immediate = null;
-        this._maybeComplete(this._manager.flush());
+    if (this._availableContexts.length < LANES && this._immediate === null) {
+      debug('_maybeComplete: adding immediate');
+      this._immediate = setImmediate(() => {
+        debug('_maybeComplete: immediate: Entering');
+        this._immediate = null;
+        this._maybeComplete(((result) => {
+          debug('manager: flush: result from native: ' + JSON.stringify(result, null, 4));
+          return result;
+        })(this._manager.flush()));
       });
     }
   }
@@ -48,7 +80,10 @@ class ContextManager {
     if (!context.releaseCallback && releaseCallback) {
       context.releaseCallback = releaseCallback;
     }
-    return this._maybeComplete(this._manager.submit(context, buffer, flag));
+    return this._maybeComplete(((result) => {
+      debug('manager: submit for context ' + context.index + ': result from native: ' + JSON.stringify(result, null, 4));
+      return result;
+    })(this._manager.submit(context, buffer, flag)));
   }
 
   static singleton() {
@@ -86,27 +121,42 @@ class SHA256MBHashStream extends Duplex {
     }
   }
 
+  _submitWhenNotProcessing(context, chunk, flag, callback, releaseCallback) {
+    const submit = () => {
+      ContextManager
+        .singleton()
+        .submit(context, chunk, flag, releaseCallback);
+      this.firstChunk = false;
+      if (callback) {
+        callback();
+      }
+    };
+    if (context.processing) {
+      context._whenProcessed = submit;
+    } else {
+      submit();
+    }
+  }
+
   _write(chunk, encoding, callback) {
     if (!chunk instanceof Buffer) {
       this.emit('error', new TypeError('input must be a Buffer'));
       return;
     }
 
+    debug('_write: requesting context: this._context is ' +
+      JSON.stringify(this._context, null, 4));
     this._requestContext((context) => {
-      ContextManager
-        .singleton()
-        .submit(context, chunk,
-          this.firstChunk ? HASH_FIRST : HASH_UPDATE);
-      this.firstChunk = false;
-      callback();
+      this._submitWhenNotProcessing(context, chunk,
+        this.firstChunk ? HASH_FIRST : HASH_UPDATE, callback);
     });
   }
 
   _final(callback) {
     this._requestContext((context) => {
-      ContextManager
-        .singleton()
-        .submit(context, new Uint8Array(0), HASH_LAST, () => {
+      debug('_final: submitting last for context ' + JSON.stringify(context, null, 4));
+      this._submitWhenNotProcessing(context, new Uint8Array(0), HASH_LAST,
+        null, () => {
           // Clone the digest here because this context will be reused and its
           // digest property points to memory held as part of the context.
           this._digest = context.digest.slice(0);

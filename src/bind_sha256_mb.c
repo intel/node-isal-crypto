@@ -9,6 +9,7 @@
 // class Context {
 //   readonly Manager manager;
 //   readonly bool complete;
+//   readonly bool processing;
 //   readonly ArrayBuffer digest;
 // };
 //
@@ -91,6 +92,18 @@ Context(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
+/*static napi_value
+Context_dump(napi_env env, napi_callback_info info) {
+  napi_value this;
+  JSSHA256HashContext* context;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &this, NULL));
+
+  NAPI_CALL(env, napi_unwrap(env, this, (void**)&context));
+
+  return NULL;
+}*/
+
 // Getter for the JS Context instance's `complete` property.
 static napi_value
 Context_complete(napi_env env, napi_callback_info info) {
@@ -106,6 +119,23 @@ Context_complete(napi_env env, napi_callback_info info) {
                                   &js_is_complete));
 
   return js_is_complete;
+}
+
+// Getter for the JS Context instance's `processing` property.
+static napi_value
+Context_processing(napi_env env, napi_callback_info info) {
+  napi_value js_is_processing = NULL, this;
+  JSSHA256HashContext* context;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &this, NULL));
+
+  NAPI_CALL(env, napi_unwrap(env, this, (void**)&context));
+
+  NAPI_CALL(env, napi_get_boolean(env,
+                                  hash_ctx_processing(&context->base),
+                                  &js_is_processing));
+
+  return js_is_processing;
 }
 
 // Getter for the JS Context instance's `digest` property.
@@ -270,15 +300,6 @@ init_sha256_mb(napi_env env) {
   napi_value exports, context_class, manager_class;
 
   napi_property_descriptor context_props[] = {
-    { "manager",
-      NULL,
-      NULL,
-      Context_manager,
-      NULL,
-      NULL,
-      napi_enumerable,
-      NULL
-    },
     {
       "complete",
       NULL,
@@ -298,7 +319,36 @@ init_sha256_mb(napi_env env) {
       NULL,
       napi_enumerable,
       NULL
-    }
+    },
+/*    {
+      "dump",
+      NULL,
+      Context_dump,
+      NULL,
+      NULL,
+      NULL,
+      napi_enumerable,
+      NULL
+    },*/
+    { "manager",
+      NULL,
+      NULL,
+      Context_manager,
+      NULL,
+      NULL,
+      napi_enumerable,
+      NULL
+    },
+    {
+      "processing",
+      NULL,
+      NULL,
+      Context_processing,
+      NULL,
+      NULL,
+      napi_enumerable,
+      NULL
+    },
   };
 
   NAPI_CALL_RETURN_UNDEFINED(env,
