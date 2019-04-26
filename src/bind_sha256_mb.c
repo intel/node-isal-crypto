@@ -59,13 +59,21 @@ finalize_Context(napi_env env, void* data, void* hint) {
   (void) hint;
   JSSHA256HashContext* ctx = (JSSHA256HashContext*)data;
 
-  assert(ctx->js_self == NULL && "Context self-reference must be NULL");
-  assert(ctx->js_manager == NULL && "Context manager reference must be NULL");
+  NAPI_ASSERT_BLOCK(env,
+                  ctx->js_self == NULL,
+                  "Context self-reference must be NULL at garbage-collection", {
+                    return;
+                  });
+  NAPI_ASSERT_BLOCK(env,
+               ctx->js_manager == NULL,
+               "Context manager reference must be NULL at garbage-collection", {
+                 return;
+               });
   free(ctx);
 }
 
 // Construct a new JS Context instance. We construct a corresponding native hash
-// context, and place the pointer inside the JS Context instance.
+// context, and place the pointer to it into the JS Context instance.
 static napi_value
 Context(napi_env env, napi_callback_info info) {
   napi_value this;
@@ -93,6 +101,7 @@ Context(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
+// Reset the native portion of a JS Context instance.
 static napi_value
 Context_reset(napi_env env, napi_callback_info info) {
   napi_value this;
@@ -102,8 +111,12 @@ Context_reset(napi_env env, napi_callback_info info) {
 
   NAPI_CALL(env, napi_unwrap(env, this, (void**)&context));
 
-  assert(context->js_self == NULL && "context self-reference must be NULL upon reset");
-  assert(context->js_manager == NULL && "context manager reference must be NULL upon reset");
+  NAPI_ASSERT(env, 
+              context->js_self == NULL,
+              "context self-reference must be NULL upon reset");
+  NAPI_ASSERT(env,
+              context->js_manager == NULL,
+              "context manager reference must be NULL upon reset");
 
   memset(&context->base, 0, sizeof(context->base));
   hash_ctx_init(&context->base);
@@ -173,13 +186,17 @@ static napi_value
 Context_manager(napi_env env, napi_callback_info info) {
   napi_value this;
   JSSHA256HashContext* ctx = NULL;
+
   NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &this, NULL));
+
   NAPI_CALL(env, napi_unwrap(env, this, (void**)&ctx));
+
   if (ctx->js_manager != NULL) {
     napi_value manager;
     NAPI_CALL(env, napi_get_reference_value(env, ctx->js_manager, &manager));
     return manager;
   }
+
   return NULL;
 }
 
@@ -189,6 +206,7 @@ static void
 finalize_Manager(napi_env env, void* data, void* hint) {
   (void) env;
   (void) hint;
+
   free((JSSHA256ContextManager*)data);
 }
 
@@ -241,10 +259,13 @@ Manager_submit(napi_env env, napi_callback_info info) {
 
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, &this, NULL));
 
+  // Retrieve the native manager.
   NAPI_CALL(env, napi_unwrap(env, this, (void**)&manager));
 
+  // Retrieve the native context.
   NAPI_CALL(env, napi_unwrap(env, argv[0], (void**)&context));
 
+  // Retrieve the native data.
   // TODO (gabrielschulhof): Verify that argv[1] is indeed a typed array.
   NAPI_CALL(env, napi_get_typedarray_info(env,
                                           argv[1],
@@ -258,6 +279,7 @@ Manager_submit(napi_env env, napi_callback_info info) {
               typedarray_type == napi_uint8_array,
               "data must be a Uint8Array");
 
+  // Retrieve the native flag.
   NAPI_CALL(env, napi_get_value_uint32(env, argv[2], (uint32_t*)&flag));
 
   // If we don't have a self-reference we need to create one.
@@ -276,9 +298,6 @@ Manager_submit(napi_env env, napi_callback_info info) {
     NAPI_CALL(env, napi_create_reference(env, this, 1, &context->js_manager));
   }
 
-  // TODO (gabrielschulhof): If this returns NULL, we should create a strong
-  // reference to the ArrayBuffer and place it in a queue of buffers to be
-  // processed for this context.
   return js_context_from_incoming_context(env,
       sha256_ctx_mgr_submit(&manager->base,
                             &context->base,
@@ -294,6 +313,8 @@ Manager_flush(napi_env env, napi_callback_info info) {
   JSSHA256ContextManager* manager;
 
   NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &js_manager, NULL));
+
+  // Retrieve the native manager.
   NAPI_CALL(env, napi_unwrap(env, js_manager, (void**)&manager));
 
   return js_context_from_incoming_context(env,
@@ -305,58 +326,19 @@ napi_value
 init_sha256_mb(napi_env env) {
   napi_value exports, context_class, manager_class, js_max_lanes;
 
+  // List the properties of the Context class.
   napi_property_descriptor context_props[] = {
-    {
-      "complete",
-      NULL,
-      NULL,
-      Context_complete,
-      NULL,
-      NULL,
-      napi_enumerable,
-      NULL
-    },
-    {
-      "digest",
-      NULL,
-      NULL,
-      Context_digest,
-      NULL,
-      NULL,
-      napi_enumerable,
-      NULL
-    },
-    {
-      "reset",
-      NULL,
-      Context_reset,
-      NULL,
-      NULL,
-      NULL,
-      napi_enumerable,
-      NULL
-    },
-    { "manager",
-      NULL,
-      NULL,
-      Context_manager,
-      NULL,
-      NULL,
-      napi_enumerable,
-      NULL
-    },
-    {
-      "processing",
-      NULL,
-      NULL,
-      Context_processing,
-      NULL,
-      NULL,
-      napi_enumerable,
-      NULL
-    },
+    { "complete", NULL, NULL, Context_complete, NULL, NULL, napi_enumerable,
+      NULL },
+    { "digest", NULL, NULL, Context_digest, NULL, NULL, napi_enumerable, NULL },
+    { "reset", NULL, Context_reset, NULL, NULL, NULL, napi_enumerable, NULL },
+    { "manager", NULL, NULL, Context_manager, NULL, NULL, napi_enumerable,
+      NULL },
+    { "processing", NULL, NULL, Context_processing, NULL, NULL, napi_enumerable,
+      NULL },
   };
 
+  // Define the Context class.
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_define_class(env,
                         "Context",
@@ -367,11 +349,13 @@ init_sha256_mb(napi_env env) {
                         context_props,
                         &context_class));
 
+  // Describe the properties of the Manager class.
   napi_property_descriptor manager_props[] = {
     { "submit", NULL, Manager_submit, NULL, NULL, NULL, napi_enumerable, NULL },
     { "flush", NULL, Manager_flush, NULL, NULL, NULL, napi_enumerable, NULL }
   };
 
+  // Define the Manager class.
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_define_class(env,
                         "Manager",
@@ -382,31 +366,28 @@ init_sha256_mb(napi_env env) {
                         manager_props,
                         &manager_class));
 
+  // Create the JS value for SHA256_MAX_LANES.
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_create_double(env, SHA256_MAX_LANES, &js_max_lanes));
 
+  // Describe the exports of the addon.
   napi_property_descriptor addon_props[] = {
     { "Context", NULL, NULL, NULL, NULL, context_class, napi_enumerable, NULL },
     { "Manager", NULL, NULL, NULL, NULL, manager_class, napi_enumerable, NULL },
-    {
-      "SHA256_MAX_LANES",
-      NULL,
-      NULL,
-      NULL,
-      NULL,
-      js_max_lanes,
-      napi_enumerable,
-      NULL
-    },
+    { "SHA256_MAX_LANES", NULL, NULL, NULL, NULL, js_max_lanes, napi_enumerable,
+      NULL },
   };
 
+  // Create an empty JS object that will have the above properties.
   NAPI_CALL_RETURN_UNDEFINED(env, napi_create_object(env, &exports));
 
+  // Add the above properties onto the object.
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_define_properties(env,
                              exports,
                              sizeof(addon_props) / sizeof(*addon_props),
                              addon_props));
 
+  // Return the object.
   return exports;
 }
