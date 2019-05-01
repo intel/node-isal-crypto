@@ -72,9 +72,8 @@ class Op {
 
 // Class that wraps a native context index.
 class Context {
-  constructor(native, index, releaseCallback) {
+  constructor(native, index) {
     this._index = index;
-    this._releaseCallback = releaseCallback;
     this._nativeStatus = new Int32Array(native,
       sizeof_manager +
       index * sizeof_context +
@@ -108,10 +107,10 @@ class Manager {
   // Asynchronously request a context. If all contexts are taken up by streams,
   // the request is placed on a queue, to be answered when a stream becomes
   // available.
-  requestContext({ callback, releaseCallback }) {
+  requestContext(callback) {
     const index = this._op.requestContext();
     if (index >= 0) {
-      this._contexts[index] = new Context(this._native, index, releaseCallback);
+      this._contexts[index] = new Context(this._native, index);
       this._contexts.length++;
       process.nextTick(callback, this._contexts[index]);
     } else {
@@ -136,19 +135,14 @@ class Manager {
       // If a context has completed then inform the release callback and
       // either reassign the context to a stream currently awaiting one, or
       // place it back on the list of available contexts.
-      if (context.complete && context._releaseCallback) {
-        // Call the release callback associated with the context.
-        const releaseCallback = context._releaseCallback;
-        context._releaseCallback = null;
-        releaseCallback(context);
-
+      if (context.complete) {
         if (this._contextRequestors.length > 0) {
           // Re-assign this context to an awaiting requestor.
-          const request = this._contextRequestors.shift();
           this._op.resetContext(context._index);
           this._contexts[context._index] =
-            new Context(this._native, context._index, request.releaseCallback);
-          process.nextTick(request.callback, this._contexts[context._index]);
+            new Context(this._native, context._index);
+          process.nextTick(this._contextRequestors.shift(),
+            this._contexts[context._index]);
         } else {
           // Nobody's waiting for a new context, so put this context back on the
           // list of available contexts.
@@ -215,12 +209,9 @@ class SHA256MBHashStream extends Duplex {
     if (this._context) {
       process.nextTick(callback, this._context);
     } else {
-      Manager.singleton().requestContext({
-        callback: (context) => {
-          this._context = context;
-          callback(context);
-        },
-        releaseCallback: this._releaseCallback.bind(this)
+      Manager.singleton().requestContext((context) => {
+        this._context = context;
+        callback(context);
       });
     }
   }
@@ -241,25 +232,16 @@ class SHA256MBHashStream extends Duplex {
     });
   }
 
-  // The manager calls this function when the digest is ready to go.
-  _releaseCallback(context) {
-    // Clone the digest here because this context will be reused and its
-    // digest property points to memory held as part of the context.
-    this._digest = context.digest.slice(0);
-    this._finalCallback();
-  }
-
   // The stream implementation calls this function to indicate that EOF has been
   // reached.
   _final(callback) {
-    // We save the callback here so as to run it when the manager informs us
-    // that the digest is ready to go. We must save the callback here *BEFORE*
-    // we submit to the manager the last, empty chunk.
-    this._finalCallback = callback;
     this._requestContext((context) => {
       Manager
         .singleton()
-        .submit(context, new Uint8Array(0), hashFlag.HASH_LAST);
+        .submit(context, new Uint8Array(0), hashFlag.HASH_LAST, () => {
+          this._digest = context.digest.slice(0);
+          callback();
+        });
     });
   }
 }
