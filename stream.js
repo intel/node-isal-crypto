@@ -30,12 +30,7 @@ class Op {
       // sizeof(SHA256_HASH_CTX_MGR)
       sizeof_manager +
       // sizeof(contexts)
-      maxLanes * sizeof_context +
-      // sizeof(available_indices)
-      maxLanes * 4 +
-      // sizeof(next_context_id)
-      4,
-      // sizeof(HashOp)
+      maxLanes * sizeof_context,
       3);
   }
 
