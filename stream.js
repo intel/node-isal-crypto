@@ -93,9 +93,8 @@ class Context {
 // The class responsible for co-ordinating the current set of streams
 class Manager {
   constructor(native) {
-    this._immediate = null;
     this._contextRequestors = [];
-    this._contexts = { length: 0 };
+    this._contexts = {};
     this._native = native;
     this._op = new Op(native);
   }
@@ -107,7 +106,6 @@ class Manager {
     const index = this._op.requestContext();
     if (index >= 0) {
       this._contexts[index] = new Context(this._native, index);
-      this._contexts.length++;
       process.nextTick(callback, this._contexts[index]);
     } else {
       this._contextRequestors.push(arguments[0]);
@@ -143,19 +141,9 @@ class Manager {
           // Nobody's waiting for a new context, so put this context back on the
           // list of available contexts.
           this._contexts[context._index] = null;
-          this._contexts.length--;
           this._op.releaseContext(context._index);
         }
       }
-    }
-
-    // As long as some contexts are still in use, add an idle callback to flush
-    // the manager whenever there is nothing else to do.
-    if (this._contexts.length > 0 && this._immediate === null) {
-      this._immediate = setImmediate(() => {
-        this._immediate = null;
-        this._maybeComplete(this._contexts[this._op.flush()]);
-      });
     }
   }
 
@@ -167,7 +155,8 @@ class Manager {
   submit(context, buffer, flag, callback) {
     context._thisBuffer = buffer;
     context._callback = callback;
-    this._maybeComplete(this._contexts[this._op.submit(context._index, buffer, flag)]);
+    this._maybeComplete(
+      this._contexts[this._op.submit(context._index, buffer, flag)]);
   }
 
   // There is only one manager in any given instance of this package.
