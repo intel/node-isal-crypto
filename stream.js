@@ -105,7 +105,8 @@ class Manager {
   requestContext(callback) {
     const index = this._op.requestContext();
     if (index >= 0) {
-      this._contexts[index] = new Context(this._native, index);
+      this._contexts[index] = this._contexts[index] ||
+        new Context(this._native, index);
       process.nextTick(callback, this._contexts[index]);
     } else {
       this._contextRequestors.push(arguments[0]);
@@ -133,14 +134,10 @@ class Manager {
         if (this._contextRequestors.length > 0) {
           // Re-assign this context to an awaiting requestor.
           this._op.resetContext(context._index);
-          this._contexts[context._index] =
-            new Context(this._native, context._index);
-          process.nextTick(this._contextRequestors.shift(),
-            this._contexts[context._index]);
+          process.nextTick(this._contextRequestors.shift(), context);
         } else {
           // Nobody's waiting for a new context, so put this context back on the
           // list of available contexts.
-          this._contexts[context._index] = null;
           this._op.releaseContext(context._index);
         }
       }
