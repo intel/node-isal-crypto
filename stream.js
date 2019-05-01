@@ -13,7 +13,7 @@ const {
     SHA256_MAX_LANES: maxLanes,
     sizeof_manager,
     sizeof_context,
-    sizeof_uint8_pointer,
+    digest_offset_in_context,
     sizeof_job
   },
   sha256_mb: native,
@@ -76,16 +76,18 @@ class Op {
 
 class Context {
   constructor(native, index, releaseCallback) {
+    this._native = native;
     this._index = index;
     this._releaseCallback = releaseCallback;
     this._nativeStatus = new Int32Array(native,
       sizeof_manager +
       index * sizeof_context +
       sizeof_job, 1);
-    this._digest = new Uint32Array(native,
+
+    this._digest = new Uint8Array(native,
       sizeof_manager +
       index * sizeof_context +
-      sizeof_uint8_pointer, 8);
+      digest_offset_in_context, 32);
   }
 
   get complete() {
@@ -107,6 +109,7 @@ class Manager {
     this._immediate = null;
     this._contextRequestors = [];
     this._contexts = { length: 0 };
+    this._native = native;
     this._op = new Op(native);
   }
 
