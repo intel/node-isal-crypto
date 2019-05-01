@@ -74,10 +74,8 @@ class Op {
   }
 }
 
-let counter = 0;
 class Context {
   constructor(native, index, releaseCallback) {
-    this._myId = counter++;
     this._index = index;
     this._releaseCallback = releaseCallback;
     this._nativeStatus = new Int32Array(native,
