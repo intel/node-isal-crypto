@@ -19,6 +19,7 @@ const {
   sha256_mb: native,
 } = isal;
 
+// We'll be subclassing stream's `Duplex` class.
 const { Duplex } = require('stream');
 
 // Turn the opcode- and cranking-based processing into actual methods.
@@ -69,6 +70,7 @@ class Op {
   }
 }
 
+// Class that wraps a native context index.
 class Context {
   constructor(native, index, releaseCallback) {
     this._index = index;
@@ -88,12 +90,8 @@ class Context {
     return (this._nativeStatus[0] === hashStatus.HASH_CTX_STS_COMPLETE);
   }
 
-  get processing() {
-    return (this._nativeStatus[0] & hashStatus.HASH_CTX_STS_PROCESSING);
-  }
-
   get digest() {
-    return this._digest.slice(0);
+    return this._digest;
   }
 }
 
@@ -133,14 +131,6 @@ class Manager {
         const callback = context._callback;
         context._callback = null;
         callback();
-      }
-
-      // If a submission was deferred because a write was in progress, then
-      // execute the submission here.
-      if (!context.complete && !context.processing && context._whenProcessed) {
-        const whenProcessed = context._whenProcessed;
-        context._whenProcessed = null;
-        whenProcessed();
       }
 
       // If a context has completed then inform the release callback and
@@ -185,16 +175,9 @@ class Manager {
   // span a reference to the buffer must be saved in the context so as to avoid
   // the buffer getting garbage-collected.
   submit(context, buffer, flag, callback) {
-    const realSubmit = () => {
-      context._thisBuffer = buffer;
-      context._callback = callback;
-      this._maybeComplete(this._contexts[this._op.submit(context._index, buffer, flag)]);
-    };
-    if (context.processing) {
-      context._whenProcessed = realSubmit;
-    } else {
-      process.nextTick(realSubmit);
-    }
+    context._thisBuffer = buffer;
+    context._callback = callback;
+    this._maybeComplete(this._contexts[this._op.submit(context._index, buffer, flag)]);
   }
 
   // There is only one manager in any given instance of this package.
@@ -262,7 +245,7 @@ class SHA256MBHashStream extends Duplex {
   _releaseCallback(context) {
     // Clone the digest here because this context will be reused and its
     // digest property points to memory held as part of the context.
-    this._digest = context.digest;
+    this._digest = context.digest.slice(0);
     this._finalCallback();
   }
 
