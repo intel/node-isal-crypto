@@ -36,7 +36,27 @@ typedef struct {
 static uv_once_t init_addon_data_key_once = UV_ONCE_INIT;
 static uv_key_t addon_data_key;
 
-static napi_value bind_op(napi_env env, napi_callback_info info) {
+static inline SHA256_HASH_CTX*
+htonl_digest(SHA256_HASH_CTX* context) {
+  if (context != NULL) {
+    if (hash_ctx_complete(context)) {
+      int idx;
+      unsigned char result[4];
+
+      for (idx = 0; idx < SHA256_DIGEST_NWORDS; idx++) {
+        result[0] = (context->job.result_digest[idx] >> 24) & 0xff;
+        result[1] = (context->job.result_digest[idx] >> 16) & 0xff;
+        result[2] = (context->job.result_digest[idx] >> 8) & 0xff;
+        result[3] = (context->job.result_digest[idx] & 0xff);
+        context->job.result_digest[idx] = *(uint32_t*)result;
+      }
+    }
+  }
+  return context;
+}
+
+static napi_value
+bind_op(napi_env env, napi_callback_info info) {
   AddonData* addon = uv_key_get(&addon_data_key);
   SHA256_HASH_CTX* context = NULL;
   switch(addon->op.opcode) {
@@ -70,7 +90,7 @@ static napi_value bind_op(napi_env env, napi_callback_info info) {
       break;
 
     case MANAGER_FLUSH:
-      context = sha256_ctx_mgr_flush(&addon->manager);
+      context = htonl_digest(sha256_ctx_mgr_flush(&addon->manager));
       addon->op.context_idx =
           ((context == NULL) ? -1 : (context - addon->contexts));
       break;
@@ -104,11 +124,11 @@ static napi_value bind_op(napi_env env, napi_callback_info info) {
                   typedarray_type == napi_uint8_array,
                   "data must be a Uint8Array");
 
-      context = sha256_ctx_mgr_submit(&addon->manager,
-                                      context,
-                                      data,
-                                      (uint32_t)length,
-                                      addon->op.flag);
+      context = htonl_digest(sha256_ctx_mgr_submit(&addon->manager,
+                                                   context,
+                                                   data,
+                                                   (uint32_t)length,
+                                                   addon->op.flag));
 
       addon->op.context_idx =
           (context == NULL ? -1 : (context - addon->contexts));
@@ -125,7 +145,8 @@ static napi_value bind_op(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-static void create_addon_data_key_once() {
+static void
+create_addon_data_key_once() {
   int result = uv_key_create(&addon_data_key);
   assert(result == 0 && "Failed to create thread-local addon data key");
 }
@@ -139,7 +160,7 @@ napi_value
 init_sha256_mb(napi_env env) {
   size_t idx;
   napi_value js_addon, op, sizeof_manager, sizeof_context, js_max_lanes,
-      sizeof_job, sizeof_uint8_pointer;
+      sizeof_job, digest_offset_in_context;
   AddonData* addon;
 
   // Establish the addon data for this thread.
@@ -189,10 +210,11 @@ init_sha256_mb(napi_env env) {
       napi_create_uint32(env,
                          ((char*)&addon->contexts[1]) -
                              ((char*)&addon->contexts[0]), &sizeof_context));
-  // It's OK to use sizeof here because we just want to expose the size of a
-  // pointer.
   NAPI_CALL_RETURN_UNDEFINED(env,
-      napi_create_uint32(env, sizeof(uint8_t*), &sizeof_uint8_pointer));
+      napi_create_uint32(env,
+                         ((char*)&addon->contexts[0].job.result_digest[0]) -
+                             ((char*)&addon->contexts[0]),
+                         &digest_offset_in_context));
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_create_uint32(env,
                          ((char*)&addon->contexts[0].status) -
@@ -210,7 +232,7 @@ init_sha256_mb(napi_env env) {
   napi_property_descriptor props[] = {
     NAPI_DESCRIBE_VALUE(sizeof_manager),
     NAPI_DESCRIBE_VALUE(sizeof_context),
-    NAPI_DESCRIBE_VALUE(sizeof_uint8_pointer),
+    NAPI_DESCRIBE_VALUE(digest_offset_in_context),
     NAPI_DESCRIBE_VALUE(sizeof_job),
     NAPI_DESCRIBE_VALUE(op),
     { "SHA256_MAX_LANES", NULL, NULL, NULL, NULL, js_max_lanes,
