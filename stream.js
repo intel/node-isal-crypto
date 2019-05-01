@@ -25,19 +25,15 @@ const { Duplex } = require('stream');
 // Turn the opcode- and cranking-based processing into actual methods.
 class Op {
   constructor(native) {
-    this._native = native;
+    this._crank = native.op;
     // Point this Int32Array to the HashOp structure.
-    this._op = new Int32Array(native,
-      // sizeof(SHA256_HASH_CTX_MGR)
-      sizeof_manager +
-      // sizeof(contexts)
-      maxLanes * sizeof_context,
-      3);
+    this._op =
+      new Int32Array(native, sizeof_manager + maxLanes * sizeof_context, 3);
   }
 
   requestContext() {
     this._op[0] = opCode.CONTEXT_REQUEST;
-    this._native.op();
+    this._crank();
     return this._op[1];
   }
 
@@ -45,27 +41,27 @@ class Op {
     this._op[0] = opCode.CONTEXT_RESET;
     this._op[1] = context;
     this._op[2] = resetFlag.CONTEXT_RESET_FLAG_RELEASE;
-    this._native.op();
+    this._crank();
   }
 
   resetContext(context) {
     this._op[0] = opCode.CONTEXT_RESET;
     this._op[1] = context;
     this._op[2] = resetFlag.CONTEXT_RESET_FLAG_RETAIN;
-    this._native.op();
+    this._crank();
   }
 
   submit(context, buffer, flag) {
     this._op[0] = opCode.MANAGER_SUBMIT;
     this._op[1] = context;
     this._op[2] = flag;
-    this._native.op(buffer);
+    this._crank(buffer);
     return this._op[1];
   }
 
   flush() {
     this._op[0] = opCode.MANAGER_FLUSH;
-    this._native.op();
+    this._crank();
     return this._op[1];
   }
 }
