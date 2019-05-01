@@ -74,9 +74,10 @@ class Op {
   }
 }
 
+let counter = 0;
 class Context {
   constructor(native, index, releaseCallback) {
-    this._native = native;
+    this._myId = counter++;
     this._index = index;
     this._releaseCallback = releaseCallback;
     this._nativeStatus = new Int32Array(native,
@@ -163,7 +164,8 @@ class Manager {
           const request = this._contextRequestors.shift();
           this._op.resetContext(context._index);
           this._contexts[context._index] =
-            new Context(this._native, context._index, releaseCallback);
+            new Context(this._native, context._index, request.releaseCallback);
+          process.nextTick(request.callback, this._contexts[context._index]);
         } else {
           // Nobody's waiting for a new context, so put this context back on the
           // list of available contexts.
