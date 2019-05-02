@@ -97,6 +97,19 @@ class Manager {
     this._contexts = {};
     this._native = native;
     this._op = new Op(native);
+    this._contextsInFlight = 0;
+    this._immediate = null;
+  }
+
+  _trackContexts(offset) {
+    const oldCount = this._contextsInFlight;
+    this._contextsInFlight += offset;
+    if (oldCount === 0 && this._contextsInFlight > 0) {
+      this._immediate = setImmediate(this._idle.bind(this), 0);
+    } else if (oldCount > 0 && this._contextsInFlight === 0 && this._immediate) {
+      clearInterval(this._immediate);
+      this._immediate = null;
+    }
   }
 
   // Asynchronously request a context. If all contexts are taken up by streams,
@@ -105,6 +118,7 @@ class Manager {
   requestContext(callback) {
     const index = this._op.requestContext();
     if (index >= 0) {
+      this._trackContexts(1);
       this._contexts[index] = this._contexts[index] ||
         new Context(this._native, index);
       process.nextTick(callback, this._contexts[index]);
@@ -139,9 +153,16 @@ class Manager {
           // Nobody's waiting for a new context, so put this context back on the
           // list of available contexts.
           this._op.releaseContext(context._index);
+          this._trackContexts(-1);
         }
       }
     }
+  }
+
+  _idle() {
+    this._maybeComplete(this._contexts[this._op.flush()]);
+    this._immediate = this._contextsInFlight > 0 ?
+      setImmediate(this._idle.bind(this)) : null;
   }
 
   // Asynchronously submit work. The callback is only called after the context
