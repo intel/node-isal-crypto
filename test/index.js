@@ -1,26 +1,17 @@
-const assert = require('assert');
-const isal = require('..');
+const fs = require('fs');
 const path = require('path');
-const missingTests = [];
-
-// Check all keys on isal and, for each, run a test by the key name and pass
-// the corresponding sub-export to it.
-Object.keys(isal).forEach((item) => {
-  const subExport = isal[item];
-  if (typeof subExport === 'object') {
-    // Find a test named after `item` and, if found, run it.
-    let subExportTestPath = undefined;
-    try {
-      subExportTestPath = require.resolve(path.join(__dirname, 'bindings', item));
-    } catch (anError) {
-      assert.strictEqual(anError.code, 'MODULE_NOT_FOUND');
-    }
-    if (subExportTestPath) {
-      require(subExportTestPath)(isal);
-    } else {
-      missingTests.push(item);
+const { spawnSync } = require('child_process');
+fs.readdirSync(__dirname).forEach((item) => {
+  const fullPath = path.join(__dirname, item);
+  if (fullPath.match(/[.]js$/) && fullPath !== __filename) {
+    const child = spawnSync(process.execPath, [ fullPath ]);
+    if (child.status !== 0) {
+      console.log('*** ' + fullPath + ' failed ***');
+      console.log('stdout:');
+      console.log(child.stdout.toString());
+      console.log('stderr:');
+      console.log(child.stderr.toString());
+      throw new Error(child.error);
     }
   }
 });
-
-assert.deepStrictEqual(missingTests, []);

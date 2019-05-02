@@ -6,9 +6,10 @@ const assert = require('assert');
 const crypto = require('crypto');
 const doNodeJS = (process.argv[2] === 'nodejs');
 const testCorrectness = (process.argv[3] === 'test');
-const hashes = {};
+const hashes = {
+  streamsComplete: 0
+};
 const streamCount = 100;
-let streamsComplete = 0;
 
 let count = 0;
 const start = process.hrtime();
@@ -19,11 +20,11 @@ const interval = setInterval(() => {
     const x = input.pipe(stream);
     x.on('finish', () => {
       const result = x.read().toString('hex');
-      streamsComplete++;
+      hashes.streamsComplete++;
       if (testCorrectness) {
         hashes[result] = '';
       }
-      if (streamsComplete == streamCount) {
+      if (hashes.streamsComplete == streamCount) {
         const elapsed = process.hrtime(start);
         if (testCorrectness) {
           console.log(JSON.stringify(hashes, null, 4));
