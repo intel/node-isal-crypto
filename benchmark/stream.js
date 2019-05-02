@@ -9,27 +9,33 @@ const testCorrectness = (process.argv[3] === 'test');
 const hashes = {
   streamsComplete: 0
 };
-const streamCount = 100;
-
-let count = 0;
-const start = process.hrtime();
+const streamsDesired = 200;
+const windowStart = (streamsDesired >> 2);
+const windowEnd = windowStart * 3;
+let streamsStarted = 0;
+let time;
 const interval = setInterval(() => {
-  if (count++ < streamCount) {
+  if (streamsStarted++ < streamsDesired) {
     const input = fs.createReadStream(path.join(__dirname, 'input.txt'));
     const stream = (doNodeJS ? crypto.createHash('sha256') : new SHA256MBStream());
     const x = input.pipe(stream);
     x.on('finish', () => {
       const result = x.read().toString('hex');
       hashes.streamsComplete++;
+      if (hashes.streamsComplete === windowStart) {
+        time = process.hrtime();
+      } else if (hashes.streamsComplete === windowEnd) {
+        time = process.hrtime(time);
+      }
       if (testCorrectness) {
         hashes[result] = '';
       }
-      if (hashes.streamsComplete == streamCount) {
-        const elapsed = process.hrtime(start);
+      if (hashes.streamsComplete === streamsDesired) {
         if (testCorrectness) {
           console.log(JSON.stringify(hashes, null, 4));
         } else {
-          console.log('elapsed: ' + (elapsed[0] * 1e9 + elapsed[1]) + ' ns');
+          console.log((windowEnd - windowStart + 1) +
+            ' streams in ' + (time[0] * 1e9 + time[1]) + ' ns');
         }
       }
     });
