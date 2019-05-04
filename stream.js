@@ -93,23 +93,12 @@ class Context {
 // The class responsible for co-ordinating the current set of streams
 class Manager {
   constructor(native) {
+    this._contextsInFlight = new Set();
     this._contextRequestors = [];
     this._contexts = {};
     this._native = native;
     this._op = new Op(native);
-    this._contextsInFlight = 0;
     this._immediate = null;
-  }
-
-  _trackContexts(offset) {
-    const oldCount = this._contextsInFlight;
-    this._contextsInFlight += offset;
-    if (oldCount === 0 && this._contextsInFlight > 0) {
-      this._immediate = setImmediate(this._idle.bind(this), 0);
-    } else if (oldCount > 0 && this._contextsInFlight === 0 && this._immediate) {
-      clearInterval(this._immediate);
-      this._immediate = null;
-    }
   }
 
   // Asynchronously request a context. If all contexts are taken up by streams,
@@ -118,9 +107,9 @@ class Manager {
   requestContext(callback) {
     const index = this._op.requestContext();
     if (index >= 0) {
-      this._trackContexts(1);
       this._contexts[index] = this._contexts[index] ||
         new Context(this._native, index);
+      this._contextsInFlight.add(this._contexts[index]);
       process.nextTick(callback, this._contexts[index]);
     } else {
       this._contextRequestors.push(arguments[0]);
@@ -141,28 +130,35 @@ class Manager {
         callback();
       }
 
-      // If a context has completed then inform the release callback and
-      // either reassign the context to a stream currently awaiting one, or
-      // place it back on the list of available contexts.
+      // If a context has completed either reassign the context to a stream
+      // currently awaiting one, or place it back on the list of available
+      // contexts.
       if (context.complete) {
         if (this._contextRequestors.length > 0) {
           // Re-assign this context to an awaiting requestor.
           this._op.resetContext(context._index);
           process.nextTick(this._contextRequestors.shift(), context);
+          this._contextsInFlight.add(context);
         } else {
           // Nobody's waiting for a new context, so put this context back on the
           // list of available contexts.
           this._op.releaseContext(context._index);
-          this._trackContexts(-1);
+          this._contextsInFlight.delete(context);
         }
       }
     }
   }
 
-  _idle() {
-    this._maybeComplete(this._contexts[this._op.flush()]);
-    this._immediate = this._contextsInFlight > 0 ?
-      setImmediate(this._idle.bind(this)) : null;
+  _maybeFlush(fromImmediate) {
+    if (fromImmediate) {
+      this._immediate = null;
+      this._maybeComplete(this._contexts[this._op.flush()]);
+    }
+    if (!this._immediate &&
+        this._contextRequestors.length === 0 &&
+        this._contextsInFlight.size > 0) {
+      this._immediate = setImmediate(this._maybeFlush.bind(this, true));
+    }
   }
 
   // Asynchronously submit work. The callback is only called after the context
@@ -175,6 +171,9 @@ class Manager {
     context._callback = callback;
     this._maybeComplete(
       this._contexts[this._op.submit(context._index, buffer, flag)]);
+    if (flag === hashFlag.HASH_LAST) {
+      this._maybeFlush();
+    }
   }
 
   // There is only one manager in any given instance of this package.

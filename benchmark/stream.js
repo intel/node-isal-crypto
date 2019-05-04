@@ -6,33 +6,34 @@ const assert = require('assert');
 const crypto = require('crypto');
 const doNodeJS = (process.argv[2] === 'nodejs');
 const testCorrectness = (process.argv[3] === 'test');
-const hashes = {
+const results = {
+  streamsStarted: 0,
+  streamsDesired: 200,
   streamsComplete: 0
 };
-const streamsDesired = 200;
-const windowStart = (streamsDesired >> 2);
+const windowStart = (results.streamsDesired >> 2);
 const windowEnd = windowStart * 3;
-let streamsStarted = 0;
 let time;
 const interval = setInterval(() => {
-  if (streamsStarted++ < streamsDesired) {
+  if (results.streamsStarted < results.streamsDesired) {
+    results.streamsStarted++;
     const input = fs.createReadStream(path.join(__dirname, 'input.txt'));
     const stream = (doNodeJS ? crypto.createHash('sha256') : new SHA256MBStream());
     const x = input.pipe(stream);
     x.on('finish', () => {
-      const result = x.read().toString('hex');
-      hashes.streamsComplete++;
-      if (hashes.streamsComplete === windowStart) {
+      const checksum = x.read().toString('hex');
+      results.streamsComplete++;
+      if (results.streamsComplete === windowStart) {
         time = process.hrtime();
-      } else if (hashes.streamsComplete === windowEnd) {
+      } else if (results.streamsComplete === windowEnd) {
         time = process.hrtime(time);
       }
       if (testCorrectness) {
-        hashes[result] = '';
+        results[checksum] = '';
       }
-      if (hashes.streamsComplete === streamsDesired) {
+      if (results.streamsComplete === results.streamsDesired) {
         if (testCorrectness) {
-          console.log(JSON.stringify(hashes, null, 4));
+          console.log(JSON.stringify(results, null, 4));
         } else {
           console.log((windowEnd - windowStart + 1) +
             ' streams in ' + (time[0] * 1e9 + time[1]) + ' ns');
