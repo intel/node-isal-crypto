@@ -93,7 +93,7 @@ class Context {
 // The class responsible for co-ordinating the current set of streams
 class Manager {
   constructor(native) {
-    this._contextsInFlight = new Set();
+    this._contextsInFlight = 0;
     this._contextRequestors = [];
     this._contexts = {};
     this._native = native;
@@ -110,7 +110,7 @@ class Manager {
     if (index >= 0) {
       this._contexts[index] = this._contexts[index] ||
         new Context(this._native, index);
-      this._contextsInFlight.add(this._contexts[index]);
+      this._contextsInFlight++;
       process.nextTick(callback, this._contexts[index]);
     } else {
       this._contextRequestors.push(arguments[0]);
@@ -139,12 +139,11 @@ class Manager {
           // Re-assign this context to an awaiting requestor.
           this._op.resetContext(context._index);
           process.nextTick(this._contextRequestors.shift(), context);
-          this._contextsInFlight.add(context);
         } else {
           // Nobody's waiting for a new context, so put this context back on the
           // list of available contexts.
           this._op.releaseContext(context._index);
-          this._contextsInFlight.delete(context);
+          this._contextsInFlight--;
         }
       }
     }
@@ -157,7 +156,7 @@ class Manager {
     }
     if (!this._immediate &&
         this._contextRequestors.length === 0 &&
-        this._contextsInFlight.size > 0) {
+        this._contextsInFlight > 0) {
       this._immediate = setImmediate(this._maybeFlushBound);
     }
   }
