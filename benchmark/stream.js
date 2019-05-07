@@ -47,7 +47,7 @@ const results = {
   elapsed: null
 };
 
-const streamsDesired = 500;
+const streamsDesired = argv.count;
 const windowStart = Math.round(streamsDesired * ((1 - argv.windowSizePercent) / 2));
 const windowEnd = streamsDesired - windowStart;
 const streamsToMeasure = windowEnd - windowStart;
