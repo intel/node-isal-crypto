@@ -241,7 +241,7 @@ class SHA512MBHashStream extends Duplex {
       Manager
         .singleton()
         .submit(context, new Uint8Array(0), hashFlag.HASH_LAST, () => {
-          this._digest = context.digest.slice(0);
+          this._digest = context.digest;
           callback();
         });
     });
