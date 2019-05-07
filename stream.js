@@ -99,6 +99,7 @@ class Manager {
     this._native = native;
     this._op = new Op(native);
     this._immediate = null;
+    this._maybeFlushBound = this._maybeFlush.bind(this, true);
   }
 
   // Asynchronously request a context. If all contexts are taken up by streams,
@@ -157,7 +158,7 @@ class Manager {
     if (!this._immediate &&
         this._contextRequestors.length === 0 &&
         this._contextsInFlight.size > 0) {
-      this._immediate = setImmediate(this._maybeFlush.bind(this, true));
+      this._immediate = setImmediate(this._maybeFlushBound);
     }
   }
 
