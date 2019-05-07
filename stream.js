@@ -134,7 +134,7 @@ class Manager {
       // If a context has completed either reassign the context to a stream
       // currently awaiting one, or place it back on the list of available
       // contexts.
-      if (context.complete) {
+      if (context._nativeStatus[0] === hashStatus.HASH_CTX_STS_COMPLETE) {
         if (this._contextRequestors.length > 0) {
           // Re-assign this context to an awaiting requestor.
           this._op.resetContext(context._index);
@@ -240,7 +240,7 @@ class SHA512MBHashStream extends Duplex {
       Manager
         .singleton()
         .submit(context, new Uint8Array(0), hashFlag.HASH_LAST, () => {
-          this._digest = context.digest;
+          this._digest = context._digest;
           callback();
         });
     });
