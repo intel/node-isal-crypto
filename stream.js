@@ -66,40 +66,30 @@ class Op {
   }
 }
 
-// Class that wraps a native context index.
-class Context {
-  constructor(native, index) {
-    this._index = index;
-    this._nativeStatus = new Int32Array(native,
-      sizeof_manager +
-      index * sizeof_context +
-      sizeof_job, 1);
-
-    this._digest = new Uint8Array(native,
-      sizeof_manager +
-      index * sizeof_context +
-      digest_offset_in_context, 32);
-  }
-
-  get complete() {
-    return (this._nativeStatus[0] === hashStatus.HASH_CTX_STS_COMPLETE);
-  }
-
-  get digest() {
-    return this._digest;
-  }
-}
-
 // The class responsible for co-ordinating the current set of streams
 class Manager {
   constructor(native) {
     this._contextsInFlight = 0;
     this._contextRequestors = [];
     this._contexts = {};
-    this._native = native;
     this._op = new Op(native);
     this._immediate = null;
     this._maybeFlushBound = this._maybeFlush.bind(this);
+
+    // Populate the list of contexts.
+    for (let index = 0; index < maxLanes; index++) {
+      this._contexts[index] = {
+        index,
+        nativeStatus:
+          new Int32Array(native,
+            sizeof_manager + index * sizeof_context + sizeof_job, 1),
+        digest:
+          new Uint8Array(native,
+            sizeof_manager + index * sizeof_context + digest_offset_in_context,
+              32)
+      };
+    }
+
   }
 
   // Asynchronously request a context. If all contexts are taken up by streams,
@@ -108,8 +98,6 @@ class Manager {
   requestContext(callback) {
     const index = this._op.requestContext();
     if (index >= 0) {
-      this._contexts[index] = this._contexts[index] ||
-        new Context(this._native, index);
       this._contextsInFlight++;
       process.nextTick(callback, this._contexts[index]);
     } else {
@@ -134,15 +122,15 @@ class Manager {
       // If a context has completed either reassign the context to a stream
       // currently awaiting one, or place it back on the list of available
       // contexts.
-      if (context._nativeStatus[0] === hashStatus.HASH_CTX_STS_COMPLETE) {
+      if (context.nativeStatus[0] === hashStatus.HASH_CTX_STS_COMPLETE) {
         if (this._contextRequestors.length > 0) {
           // Re-assign this context to an awaiting requestor.
-          this._op.resetContext(context._index);
+          this._op.resetContext(context.index);
           process.nextTick(this._contextRequestors.shift(), context);
         } else {
           // Nobody's waiting for a new context, so put this context back on the
           // list of available contexts.
-          this._op.releaseContext(context._index);
+          this._op.releaseContext(context.index);
           this._contextsInFlight--;
         }
       }
@@ -169,7 +157,7 @@ class Manager {
     context._thisBuffer = buffer;
     context._callback = callback;
     this._maybeComplete(
-      this._contexts[this._op.submit(context._index, buffer, flag)]);
+      this._contexts[this._op.submit(context.index, buffer, flag)]);
     if (flag === hashFlag.HASH_LAST && !this._immediate) {
       this._maybeFlush();
     }
@@ -240,7 +228,7 @@ class SHA512MBHashStream extends Duplex {
       Manager
         .singleton()
         .submit(context, new Uint8Array(0), hashFlag.HASH_LAST, () => {
-          this._digest = context._digest;
+          this._digest = context.digest;
           callback();
         });
     });
