@@ -87,7 +87,7 @@ htonl_digest(SHA512_HASH_CTX* context) {
 // `context_idx` field of `op` before returning so that JS might read it.
 static napi_value
 bind_op(napi_env env, napi_callback_info info) {
-  AddonData* addon = uv_key_get(&addon_data_key);
+  AddonData* addon = (AddonData*)uv_key_get(&addon_data_key);
   SHA512_HASH_CTX* context = NULL;
   switch(addon->js.op.code) {
     case NOOP:
@@ -168,11 +168,12 @@ bind_op(napi_env env, napi_callback_info info) {
                   typedarray_type == napi_uint8_array,
                   "data must be a Uint8Array");
 
-      context = htonl_digest(sha512_ctx_mgr_submit(&addon->js.manager,
-                                                   context,
-                                                   data,
-                                                   (uint32_t)length,
-                                                   addon->js.op.flag));
+      context =
+          htonl_digest(sha512_ctx_mgr_submit(&addon->js.manager,
+                                             context,
+                                             data,
+                                             (uint32_t)length,
+                                             (HASH_CTX_FLAG)addon->js.op.flag));
 
       // Write the resulting context's index into `context_id` to serve as the
       // return value in JS.
@@ -206,7 +207,7 @@ Addon_finalize(napi_env env, void* data, void* hint) {
 }
 
 // Exposes the API to JS.
-napi_value
+extern "C" napi_value
 init_sha512_mb(napi_env env) {
   size_t idx;
   napi_value js_addon, op, sizeof_manager, sizeof_context, js_max_lanes,

@@ -35,8 +35,8 @@
       ],
       'sources': [
         'src/bind_mh_sha256.c',
-        'src/bind_sha256_mb.c',
-        'src/bind_sha512_mb.c',
+        'src/bind_sha256_mb.cc',
+        'src/bind_sha512_mb.cc',
         'src/common.h',
         'src/main.c',
       ]
