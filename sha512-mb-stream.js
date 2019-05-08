@@ -10,7 +10,7 @@ const {
     ContextResetFlag: resetFlag
   },
   sha512_mb: {
-    SHA512_MAX_LANES: maxLanes,
+    maxLanes,
     sizeof_manager,
     sizeof_context,
     digest_offset_in_context,
