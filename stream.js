@@ -74,6 +74,9 @@ class Manager {
     this._contexts = {};
     this._op = new Op(native);
     this._immediate = null;
+
+    // Create a version of _maybeFlush() bound to this object so we may pass it
+    // to setImmediate().
     this._maybeFlushBound = this._maybeFlush.bind(this);
 
     // Populate the list of contexts.
@@ -137,6 +140,9 @@ class Manager {
     }
   }
 
+  // Add an immediate handler if there is still work left to do, and the queue
+  // of streams asking for a context is empty. Perform flush() if called as the
+  // immediate handler.
   _maybeFlush() {
     if (this._immediate) {
       this._immediate = null;
