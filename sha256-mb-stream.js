@@ -5,18 +5,18 @@ const isal = require('.');
 const {
   multi_buffer: {
     HASH_CTX_FLAG: hashFlag,
-    HASH_CTX_STS: hashStatus
-  },
-  sha512_mb: {
+    HASH_CTX_STS: hashStatus,
     HashOpCode: opCode,
     ContextResetFlag: resetFlag,
-    SHA512_MAX_LANES: maxLanes,
+  },
+  sha256_mb: {
+    SHA256_MAX_LANES: maxLanes,
     sizeof_manager,
     sizeof_context,
     digest_offset_in_context,
     sizeof_job
   },
-  sha512_mb: native,
+  sha256_mb: native,
 } = isal;
 
 // We'll be subclassing stream's `Duplex` class.
@@ -179,7 +179,7 @@ class Manager {
 }
 
 // The implementation of a single stream
-class SHA512MBHashStream extends Duplex {
+class SHA256MBHashStream extends Duplex {
   constructor(options) {
     super(options);
     this._firstChunk = true;
@@ -241,4 +241,4 @@ class SHA512MBHashStream extends Duplex {
   }
 }
 
-module.exports = SHA512MBHashStream;
+module.exports = SHA256MBHashStream;

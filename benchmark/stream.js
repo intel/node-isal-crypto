@@ -1,4 +1,3 @@
-const SHA256MBStream = require('../stream');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -14,6 +13,12 @@ const argv = require('yargs')
     alias: 'nodejs',
     type: 'boolean',
     describe: 'Run Node.js implementation'
+  })
+  .option('H', {
+    alias: 'hash',
+    choices: ['sha256', 'sha512'],
+    describe: 'The hash to benchmark',
+    default: 'sha256'
   })
   .option('t', {
     alias: 'test',
@@ -32,8 +37,12 @@ const argv = require('yargs')
     default: 0,
     describe: 'Number of seconds of perf data to record'
   })
-  .help('h')
+  .alias('h', 'help')
+  .help('help')
+  .usage(path.basename(__filename) + ' [options]')
   .argv;
+
+const HashStream = require('../' + argv.hash + '-mb-stream.js');
 
 if (argv.test) {
   argv.windowSizePercent = 0;
@@ -90,7 +99,7 @@ for (let streamIndex = 0; streamIndex < streamsDesired; streamIndex++) {
   }
 
   fs.createReadStream(inputFile)
-    .pipe(argv.nodejs ? crypto.createHash('sha256') : new SHA256MBStream())
+    .pipe(argv.nodejs ? crypto.createHash(argv.hash) : new HashStream())
     .on('finish', onStreamFinish)
     ._measure = (streamIndex >= windowStart && streamIndex < windowEnd);
   results.streamsStarted++;
