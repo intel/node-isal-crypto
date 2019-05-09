@@ -1,6 +1,5 @@
 const path = require('path');
 const fs = require('fs');
-const crypto = require('crypto');
 const { spawn } = require('child_process');
 const argv = require('yargs')
   .option('c', {
@@ -16,7 +15,6 @@ const argv = require('yargs')
   })
   .option('H', {
     alias: 'hash',
-    choices: ['sha256', 'sha512'],
     describe: 'The hash to benchmark',
     default: 'sha256'
   })
@@ -41,8 +39,7 @@ const argv = require('yargs')
   .help('help')
   .usage(path.basename(__filename) + ' [options]')
   .argv;
-
-const HashStream = require('../' + argv.hash + '-mb-stream.js');
+const crypto = argv.nodejs ? require('crypto') : require('..');
 
 if (argv.test) {
   argv.windowSizePercent = 0;
@@ -99,7 +96,7 @@ for (let streamIndex = 0; streamIndex < streamsDesired; streamIndex++) {
   }
 
   fs.createReadStream(inputFile)
-    .pipe(argv.nodejs ? crypto.createHash(argv.hash) : new HashStream())
+    .pipe(crypto.createHash(argv.hash))
     .on('finish', onStreamFinish)
     ._measure = (streamIndex >= windowStart && streamIndex < windowEnd);
   results.streamsStarted++;
