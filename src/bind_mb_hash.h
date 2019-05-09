@@ -9,8 +9,8 @@
 #include "multi_buffer.h"
 
 // JavaScript interface:
-// The addon returns an `ArrayBuffer` containing the manager, the contexts, and a
-// surface for describing an operation that can be executed using the `op()`
+// The addon returns an `ArrayBuffer` containing the manager, the contexts, and
+// a surface for describing an operation that can be executed using the `op()`
 // method which can be found on the `ArrayBuffer` on the JS side. This latter
 // structure allows us to avoid heavy passing of parameters to `op()`.
 
@@ -77,8 +77,8 @@ template <
 static napi_value
 bind_op(napi_env env, napi_callback_info info) {
   AddonData<ManagerType, ContextType, lane_count>* addon =
-      (AddonData<ManagerType, ContextType, lane_count>*)
-          uv_key_get(&addon_data_key);
+      static_cast<AddonData<ManagerType, ContextType, lane_count>*>(
+          uv_key_get(&addon_data_key));
   ContextType* context = nullptr;
   switch(addon->js.op.code) {
     case NOOP:
@@ -103,7 +103,7 @@ bind_op(napi_env env, napi_callback_info info) {
       NAPI_ASSERT(env,
                   addon->js.op.context_idx >= 0 && 
                       addon->js.op.context_idx <
-                          (int32_t)sizeof(addon->js.contexts),
+                          static_cast<int32_t>(sizeof(addon->js.contexts)),
                   "CONTEXT_RESET index out of range");
       NAPI_ASSERT(env,
                   addon->js.op.flag == CONTEXT_RESET_FLAG_RELEASE ||
@@ -166,7 +166,7 @@ bind_op(napi_env env, napi_callback_info info) {
                               context,
                               data,
                               (uint32_t)length,
-                              (HASH_CTX_FLAG)addon->js.op.flag);
+                              static_cast<HASH_CTX_FLAG>(addon->js.op.flag));
       if (context != nullptr && hash_ctx_complete(context)) {
         hash_htonl(context);
       }
@@ -231,8 +231,8 @@ InitMBHash(napi_env env) {
   uv_once(&init_addon_data_key_once, create_addon_data_key_once);
 
   // Retrieve the addon data from thread-local storage.
-  addon = (AddonData<ManagerType, ContextType, lane_count>*)
-      uv_key_get(&addon_data_key);
+  addon = static_cast<AddonData<ManagerType, ContextType, lane_count>*>(
+      uv_key_get(&addon_data_key));
 
   // The data will be absent if this is the first instance of the addon on this
   // thread. In that case, we need to allocate it and store the pointer in the
@@ -240,8 +240,8 @@ InitMBHash(napi_env env) {
   if (addon == nullptr) {
     // If the addon data is not yet stored in TLS on this thread, then
     // allocate it, initialize it, and save it under the TLS key.
-    addon = (AddonData<ManagerType, ContextType, lane_count>*)
-      malloc(sizeof(*addon));
+    addon = static_cast<AddonData<ManagerType, ContextType, lane_count>*>(
+      malloc(sizeof(*addon)));
     NAPI_ASSERT_BLOCK(env, addon != nullptr, "Failed to allocate addon data", {
       napi_value undefined;
       napi_status status = napi_get_undefined(env, &undefined);
@@ -272,33 +272,35 @@ InitMBHash(napi_env env) {
   // Expose the portion of the addon data relevant to JS.
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_create_external_arraybuffer(env,
-                           addon,
-                           ((char*)&addon->available_indices[0]) -
-                               ((char*)addon),
-                           Addon_finalize<ManagerType, ContextType, lane_count>,
-                           nullptr,
-                           &js_addon));
+                         addon,
+                         reinterpret_cast<char*>(&addon->available_indices[0]) -
+                             reinterpret_cast<char*>(addon),
+                         Addon_finalize<ManagerType, ContextType, lane_count>,
+                         nullptr,
+                         &js_addon));
 
   // Expose some sizes that will help JS properly index into the data exposed
   // above.
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_create_uint32(env,
-                         ((char*)&addon->js.contexts[0]) -
-                             ((char*)&addon->js.manager),
+                         reinterpret_cast<char*>(&addon->js.contexts[0]) -
+                             reinterpret_cast<char*>(&addon->js.manager),
                          &sizeof_manager));
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_create_uint32(env,
-                         ((char*)&addon->js.contexts[1]) -
-                             ((char*)&addon->js.contexts[0]), &sizeof_context));
+                         reinterpret_cast<char*>(&addon->js.contexts[1]) -
+                             reinterpret_cast<char*>(&addon->js.contexts[0]),
+                         &sizeof_context));
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_create_uint32(env,
-                         ((char*)&addon->js.contexts[0].job.result_digest[0]) -
-                             ((char*)&addon->js.contexts[0]),
-                         &digest_offset_in_context));
+          reinterpret_cast<char*>(&addon->js.contexts[0].job.result_digest[0]) -
+              reinterpret_cast<char*>(&addon->js.contexts[0]),
+          &digest_offset_in_context));
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_create_uint32(env,
-                         ((char*)&addon->js.contexts[0].status) -
-                             ((char*)&addon->js.contexts[0]), &sizeof_job));
+                        reinterpret_cast<char*>(&addon->js.contexts[0].status) -
+                            reinterpret_cast<char*>(&addon->js.contexts[0]),
+                        &sizeof_job));
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_create_uint32(env, lane_count, &js_max_lanes));
 
@@ -346,10 +348,14 @@ void hash_htonl_uint32(ContextType* context) {
   uint32_t result;
 
   for (idx = 0; idx < word_count; idx++) {
-    ((unsigned char*)&result)[0] = (context->job.result_digest[idx] >> 24) & 0xff;
-    ((unsigned char*)&result)[1] = (context->job.result_digest[idx] >> 16) & 0xff;
-    ((unsigned char*)&result)[2] = (context->job.result_digest[idx] >> 8) & 0xff;
-    ((unsigned char*)&result)[3] = (context->job.result_digest[idx] & 0xff);
+    reinterpret_cast<unsigned char*>(&result)[0] =
+        (context->job.result_digest[idx] >> 24) & 0xff;
+    reinterpret_cast<unsigned char*>(&result)[1] =
+        (context->job.result_digest[idx] >> 16) & 0xff;
+    reinterpret_cast<unsigned char*>(&result)[2] =
+        (context->job.result_digest[idx] >> 8) & 0xff;
+    reinterpret_cast<unsigned char*>(&result)[3] =
+        (context->job.result_digest[idx] & 0xff);
     context->job.result_digest[idx] = result;
   }
 }
