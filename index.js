@@ -19,6 +19,12 @@ const hashConstructors = {
     native: isal.sha1_mb,
     className: 'SHA1MBHashStream',
     digestLength: 20
+  }),
+  md5: hashStreamClassFactory({
+    multi_buffer: isal.multi_buffer,
+    native: isal.md5_mb,
+    className: 'MD5MBHashStream',
+    digestLength: 16
   })
 };
 
