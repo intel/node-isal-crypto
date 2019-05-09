@@ -1,27 +1,10 @@
 const path = require('path');
 const fs = require('fs');
-const spawnSync = require('child_process').spawnSync;
 const rimraf = require('rimraf');
+const run = require('./lib/run');
 
 const patchesDir = path.join(__dirname, '..', 'patches');
 const isalDir = path.resolve(path.join(__dirname, '..', 'isa-l_crypto'));
-
-function run(command, arguments, options) {
-  const result = spawnSync(command, arguments, options);
-  if (result.status !== 0) {
-    throw Object.assign(new Error(
-        'command ' + command +
-        ' with arguments ' + JSON.stringify(arguments) + ', ' +
-        ' stdout ' + JSON.stringify(result.stdout.toString()) + ', ' +
-        ' stderr ' + JSON.stringify(result.stderr.toString()) + ', ' +
-        ' and options ' + JSON.stringify(options) +
-        ' failed'), {
-      status: result.status,
-      signal: result.signal,
-      error: result.error
-    });
-  }
-}
 
 function touch(filename) {
   fs.closeSync(fs.openSync(filename, 'w'));
