@@ -4,18 +4,26 @@
 static inline void
 sha512_htonl(SHA512_HASH_CTX* context) {
     int idx;
-    unsigned char result[8];
+    uint64_t result;
 
     for (idx = 0; idx < SHA512_DIGEST_NWORDS; idx++) {
-      result[0] = (context->job.result_digest[idx] >> 56) & 0xff;
-      result[1] = (context->job.result_digest[idx] >> 48) & 0xff;
-      result[2] = (context->job.result_digest[idx] >> 40) & 0xff;
-      result[3] = (context->job.result_digest[idx] >> 32) & 0xff;
-      result[4] = (context->job.result_digest[idx] >> 24) & 0xff;
-      result[5] = (context->job.result_digest[idx] >> 16) & 0xff;
-      result[6] = (context->job.result_digest[idx] >> 8) & 0xff;
-      result[7] = (context->job.result_digest[idx] & 0xff);
-      context->job.result_digest[idx] = *(uint64_t*)result;
+      ((unsigned char*)&result)[0] =
+        (context->job.result_digest[idx] >> 56) & 0xff;
+      ((unsigned char*)&result)[1] =
+        (context->job.result_digest[idx] >> 48) & 0xff;
+      ((unsigned char*)&result)[2] =
+        (context->job.result_digest[idx] >> 40) & 0xff;
+      ((unsigned char*)&result)[3] =
+        (context->job.result_digest[idx] >> 32) & 0xff;
+      ((unsigned char*)&result)[4] =
+        (context->job.result_digest[idx] >> 24) & 0xff;
+      ((unsigned char*)&result)[5] =
+        (context->job.result_digest[idx] >> 16) & 0xff;
+      ((unsigned char*)&result)[6] =
+        (context->job.result_digest[idx] >>  8) & 0xff;
+      ((unsigned char*)&result)[7] =
+        (context->job.result_digest[idx] >>  0) & 0xff;
+      context->job.result_digest[idx] = result;
     }
 }
 

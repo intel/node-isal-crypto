@@ -343,14 +343,14 @@ InitMBHash(napi_env env) {
 template <typename ContextType, size_t word_count>
 void hash_htonl_uint32(ContextType* context) {
   size_t idx;
-  unsigned char result[4];
+  uint32_t result;
 
   for (idx = 0; idx < word_count; idx++) {
-    result[0] = (context->job.result_digest[idx] >> 24) & 0xff;
-    result[1] = (context->job.result_digest[idx] >> 16) & 0xff;
-    result[2] = (context->job.result_digest[idx] >> 8) & 0xff;
-    result[3] = (context->job.result_digest[idx] & 0xff);
-    context->job.result_digest[idx] = *(uint32_t*)result;
+    ((unsigned char*)&result)[0] = (context->job.result_digest[idx] >> 24) & 0xff;
+    ((unsigned char*)&result)[1] = (context->job.result_digest[idx] >> 16) & 0xff;
+    ((unsigned char*)&result)[2] = (context->job.result_digest[idx] >> 8) & 0xff;
+    ((unsigned char*)&result)[3] = (context->job.result_digest[idx] & 0xff);
+    context->job.result_digest[idx] = result;
   }
 }
 
