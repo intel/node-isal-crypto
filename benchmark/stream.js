@@ -105,6 +105,7 @@ for (let streamIndex = 0; streamIndex < streamsDesired; streamIndex++) {
 process.on('exit', () => {
   if (argv.test) {
     delete results.elapsed;
+    delete results.streamsMeasured;
   }
   console.log(JSON.stringify(results, null, 4));
 });
