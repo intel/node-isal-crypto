@@ -13,6 +13,12 @@ const hashConstructors = {
     native: isal.sha512_mb,
     className: 'SHA512MBHashStream',
     digestLength: 64
+  }),
+  sha1: hashStreamClassFactory({
+    multi_buffer: isal.multi_buffer,
+    native: isal.sha1_mb,
+    className: 'SHA1MBHashStream',
+    digestLength: 20
   })
 };
 
