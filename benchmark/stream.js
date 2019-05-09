@@ -41,6 +41,8 @@ const argv = require('yargs')
   .argv;
 const crypto = argv.nodejs ? require('crypto') : require('..');
 
+let overallHRTime = process.hrtime();
+
 if (argv.test) {
   argv.windowSizePercent = 0;
 }
@@ -59,6 +61,10 @@ const windowEnd = streamsDesired - windowStart;
 const streamsToMeasure = windowEnd - windowStart;
 const inputFile = path.join(__dirname, 'input.txt');
 
+function toNanoSeconds(hrtime) {
+  return hrtime[0] * 1e9 + hrtime[1];
+}
+
 function runPerf(length) {
   const perf = spawn('perf', [
     'record', '-F', '99', '-p', '' + process.pid, '-g', '--', 'sleep', ('' + length)
@@ -66,7 +72,8 @@ function runPerf(length) {
     stdio: 'inherit'
   });
   perf.on('exit', function(number, signal) {
-    console.log('perf exit: ' + number + ', and signal ' + signal);
+    console.log(toNanoSeconds(process.hrtime(overallHRTime)) +
+      ': perf exit: ' + number + ', and signal ' + signal);
   });
 }
 
@@ -80,16 +87,25 @@ function onStreamFinish() {
     results.streamsMeasured++;
     if (results.streamsMeasured === streamsToMeasure &&
         results.elapsed !== null) {
-      results.elapsed = process
-        .hrtime(results.elapsed)
-        .reduce((first, second) => first * 1e9 + second);
+      results.elapsed = toNanoSeconds(process.hrtime(results.elapsed));
+      if (argv.perfLength > 0) {
+        console.log(toNanoSeconds(process.hrtime(overallHRTime)) +
+          ': window end');
+      }
     }
   }
+}
+
+if (argv.perfLength > 0) {
+  console.log(toNanoSeconds(process.hrtime(overallHRTime)) +
+    ': starting to submit streams');
 }
 
 for (let streamIndex = 0; streamIndex < streamsDesired; streamIndex++) {
   if (streamIndex === windowStart) {
     if (argv.perfLength > 0) {
+      console.log(toNanoSeconds(process.hrtime(overallHRTime)) +
+        ': perf start');
       runPerf(argv.perfLength);
     }
     results.elapsed = process.hrtime();
