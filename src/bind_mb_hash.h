@@ -59,17 +59,6 @@ struct AddonData {
 static uv_once_t init_addon_data_key_once = UV_ONCE_INIT;
 static uv_key_t addon_data_key;
 
-template <typename ContextType, class Converter>
-class HashHTONL {
- public:
-  static inline ContextType* Run(ContextType* context) {
-    if (context != nullptr && hash_ctx_complete(context)) {
-      Converter::HTONL(context);
-    }
-    return context;
-  }
-};
-
 // Main interface between JS and native. Read what JS wrote into the `op`
 // portion of the JSAddonData structure, and synchronously execute the request.
 // A return value, if present, is always a context index. It is placed into the
@@ -84,16 +73,16 @@ template <
                                 const void*,
                                 uint32_t,
                                 HASH_CTX_FLAG),
-  class HTONL>
+  void (*hash_htonl)(ContextType*)>
 static napi_value
 bind_op(napi_env env, napi_callback_info info) {
   AddonData<ManagerType, ContextType, lane_count>* addon =
       (AddonData<ManagerType, ContextType, lane_count>*)
           uv_key_get(&addon_data_key);
-  ContextType* context = NULL;
+  ContextType* context = nullptr;
   switch(addon->js.op.code) {
     case NOOP:
-      return NULL;
+      return nullptr;
 
     // A context is being requested. If one is available, write it into the
     // remove it from the list of available indices and write it to the
@@ -132,9 +121,12 @@ bind_op(napi_env env, napi_callback_info info) {
     // Flush the manager and return the index of the resulting context to the
     // `context_idx` field.
     case MANAGER_FLUSH:
-      context = HTONL::Run(ManagerFlush(&addon->js.manager));
+      context = ManagerFlush(&addon->js.manager);
+      if (context != nullptr && hash_ctx_complete(context)) {
+        hash_htonl(context);
+      }
       addon->js.op.context_idx =
-          ((context == NULL) ? -1 : (context - addon->js.contexts));
+          ((context == nullptr) ? -1 : (context - addon->js.contexts));
       break;
 
     // Submit to the manager. The data is a JS `Uint8Array` given as the sole
@@ -153,8 +145,8 @@ bind_op(napi_env env, napi_callback_info info) {
                                       info,
                                       &argc,
                                       &typedarray,
-                                      NULL,
-                                      NULL));
+                                      nullptr,
+                                      nullptr));
 
       // Retrieve the native data.
       // TODO (gabrielschulhof): Verify that argv[1] is indeed a typed array.
@@ -163,23 +155,26 @@ bind_op(napi_env env, napi_callback_info info) {
                                               &typedarray_type,
                                               &length,
                                               &data,
-                                              NULL,
-                                              NULL));
+                                              nullptr,
+                                              nullptr));
 
       NAPI_ASSERT(env,
                   typedarray_type == napi_uint8_array,
                   "data must be a Uint8Array");
 
-      context = HTONL::Run(ManagerSubmit(&addon->js.manager,
-                                         context,
-                                         data,
-                                         (uint32_t)length,
-                                         (HASH_CTX_FLAG)addon->js.op.flag));
+      context = ManagerSubmit(&addon->js.manager,
+                              context,
+                              data,
+                              (uint32_t)length,
+                              (HASH_CTX_FLAG)addon->js.op.flag);
+      if (context != nullptr && hash_ctx_complete(context)) {
+        hash_htonl(context);
+      }
 
       // Write the resulting context's index into `context_id` to serve as the
       // return value in JS.
       addon->js.op.context_idx =
-          (context == NULL ? -1 : (context - addon->js.contexts));
+          (context == nullptr ? -1 : (context - addon->js.contexts));
       break;
     }
 
@@ -189,7 +184,7 @@ bind_op(napi_env env, napi_callback_info info) {
                                             "Unknown op code"));
       break;
   }
-  return NULL;
+  return nullptr;
 }
 
 // This is called once for all threads to spawn within this process. It
@@ -220,7 +215,7 @@ template <
                                 const void*,
                                 uint32_t,
                                 HASH_CTX_FLAG),
-  class HTONL
+  void (*hash_htonl)(ContextType*)
   >
 static napi_value
 InitMBHash(napi_env env) {
@@ -242,12 +237,12 @@ InitMBHash(napi_env env) {
   // The data will be absent if this is the first instance of the addon on this
   // thread. In that case, we need to allocate it and store the pointer in the
   // thread-local storage.
-  if (addon == NULL) {
+  if (addon == nullptr) {
     // If the addon data is not yet stored in TLS on this thread, then
     // allocate it, initialize it, and save it under the TLS key.
     addon = (AddonData<ManagerType, ContextType, lane_count>*)
       malloc(sizeof(*addon));
-    NAPI_ASSERT_BLOCK(env, addon != NULL, "Failed to allocate addon data", {
+    NAPI_ASSERT_BLOCK(env, addon != nullptr, "Failed to allocate addon data", {
       napi_value undefined;
       napi_status status = napi_get_undefined(env, &undefined);
       assert(status == napi_ok && "Failed to retrieve undefined");
@@ -281,7 +276,7 @@ InitMBHash(napi_env env) {
                            ((char*)&addon->available_indices[0]) -
                                ((char*)addon),
                            Addon_finalize<ManagerType, ContextType, lane_count>,
-                           NULL,
+                           nullptr,
                            &js_addon));
 
   // Expose some sizes that will help JS properly index into the data exposed
@@ -318,7 +313,7 @@ InitMBHash(napi_env env) {
                              lane_count,
                              ManagerFlush,
                              ManagerSubmit,
-                             HTONL>,
+                             hash_htonl>,
                            addon,
                            &op));
 
@@ -329,8 +324,8 @@ InitMBHash(napi_env env) {
     NAPI_DESCRIBE_VALUE(digest_offset_in_context),
     NAPI_DESCRIBE_VALUE(sizeof_job),
     NAPI_DESCRIBE_VALUE(op),
-    { "maxLanes", NULL, NULL, NULL, NULL, js_max_lanes,
-        napi_enumerable, NULL }
+    { "maxLanes", nullptr, nullptr, nullptr, nullptr, js_max_lanes,
+        napi_enumerable, nullptr }
   };
 
   // Attach the properties to the JS-exposed addon data.

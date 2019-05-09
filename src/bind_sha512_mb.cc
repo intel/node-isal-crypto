@@ -1,11 +1,8 @@
 #include "sha512_mb.h"
 #include "bind_mb_hash.h"
 
-// Convert the digest from hardware byte order to network byte order if the
-// context is complete.
-class SHA512_HashHTONL : public HashHTONL<SHA512_HASH_CTX, SHA512_HashHTONL> {
- public:
-  static inline void HTONL(SHA512_HASH_CTX* context) {
+static inline void
+sha512_htonl(SHA512_HASH_CTX* context) {
     int idx;
     unsigned char result[8];
 
@@ -20,8 +17,7 @@ class SHA512_HashHTONL : public HashHTONL<SHA512_HASH_CTX, SHA512_HashHTONL> {
       result[7] = (context->job.result_digest[idx] & 0xff);
       context->job.result_digest[idx] = *(uint64_t*)result;
     }
-  }
-};
+}
 
 extern "C" napi_value
 init_sha512_mb(napi_env env) {
@@ -32,5 +28,6 @@ init_sha512_mb(napi_env env) {
       sha512_ctx_mgr_init,
       sha512_ctx_mgr_flush,
       sha512_ctx_mgr_submit,
-      SHA512_HashHTONL>(env);
+      sha512_htonl
+  >(env);
 }
