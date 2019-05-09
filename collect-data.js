@@ -19,7 +19,7 @@ function getOneAverage(hash, isNode) {
   return (result / samples);
 }
 
-spawn('bash', [
+run('bash', [
   '-c',
   'git clean -xfd && ' +
   'git submodule foreach --recursive git clean -xfd && ' +
@@ -30,7 +30,9 @@ spawn('bash', [
   ' install'
 ], {
   stdio: 'inherit'
-}).on('exit', () => (hashes.forEach((hash) => {
+});
+
+hashes.forEach((hash) => {
   console.log('\r\033[K' + hash + ':\t' +
     getOneAverage(hash, true) / getOneAverage(hash, false));
-})));
+});
