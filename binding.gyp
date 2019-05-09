@@ -14,7 +14,7 @@
           ],
           'action': [
             'node',
-            'build-scripts/build-isa-l.js'
+            'build-scripts/build-isa-l.js',
           ]
         }
       ]

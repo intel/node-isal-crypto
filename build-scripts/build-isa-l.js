@@ -11,9 +11,20 @@ run(path.join(isalDir, 'autogen.sh'), [], {
   cwd: isalDir
 });
 
-run(path.join(isalDir, 'configure'), [], {
+const cflags = new Set(['-fPIC', '-DPIC', '-O2']);
+if (process.env.npm_config_perf === 'true') {
+  cflags.add('-g');
+}
+if (process.env.npm_config_debug === 'true') {
+  cflags.add('-g');
+  cflags.add('-O0');
+  cflags.delete('-O2');
+}
+
+run(path.join(isalDir, 'configure'),
+  (process.env.npm_config_debug === 'true' ? ['--enable-debug'] : []), {
   env: Object.assign({}, process.env, {
-    CFLAGS: '-fPIC -DPIC'
+    CFLAGS: Array.from(cflags).join(' ')
   }),
   stdio: 'inherit',
   cwd: isalDir
