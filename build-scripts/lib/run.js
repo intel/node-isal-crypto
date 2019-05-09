@@ -6,8 +6,8 @@ module.exports = function run(command, arguments, options) {
     throw Object.assign(new Error(
         'command ' + command +
         ' with arguments ' + JSON.stringify(arguments) + ', ' +
-        ' stdout ' + JSON.stringify(result.stdout.toString()) + ', ' +
-        ' stderr ' + JSON.stringify(result.stderr.toString()) + ', ' +
+        ' stdout ' + (result.stdout ? JSON.stringify(result.stdout.toString()) : '(null)') + ', ' +
+        ' stderr ' + (result.stderr ? JSON.stringify(result.stderr.toString()) : '(null)') + ', ' +
         ' and options ' + JSON.stringify(options) +
         ' failed'), {
       status: result.status,

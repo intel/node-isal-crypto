@@ -7,10 +7,10 @@
         {
           'action_name': 'build',
           'inputs': [
-            'isa-l_crypto/Makefile.unx'
+            'isa-l_crypto/Makefile.am'
           ],
           'outputs': [
-            'isa-l_crypto/bin/isa-l_crypto.a'
+            'isa-l_crypto/.libs/libisal_crypto.a'
           ],
           'action': [
             'node',
@@ -25,7 +25,7 @@
         '<(module_root_dir)/isa-l_crypto/include'
       ],
       'libraries': [
-        '<(module_root_dir)/isa-l_crypto/bin/isa-l_crypto.a'
+        '<(module_root_dir)/isa-l_crypto/.libs/libisal_crypto.a'
       ],
       'dependencies': [
         'csdk'
