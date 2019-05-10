@@ -4,14 +4,15 @@ const benchmarkPath = require('path').join(__dirname, 'benchmark', 'stream');
 const hashes = [ 'md5', 'sha1', 'sha256', 'sha512' ];
 const samples = 20;
 
-function getOneAverage(hash, isNode) {
+function getOneAverage(hash, runNodeJS) {
   let result = 0;
   for (let idx = 0; idx < samples; idx++) {
-    process.stdout.write('\r\033[K' + hash + (isNode ? '(node)' : '') + ': iteration ' + idx);
+    process.stdout.write('\r\033[K' + hash + (runNodeJS ? '(node)' : '') +
+      ': iteration ' + idx);
     result += JSON.parse(
       spawnSync(process.execPath, [
-          benchmarkPath, '-H', hash
-        ].concat(isNode ? ['-n'] : []))
+          benchmarkPath, JSON.stringify({hash, runNodeJS})
+      ])
         .stdout
         .toString())
       .elapsed;
