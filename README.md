@@ -1,4 +1,5 @@
 # Node.js bindings for [isa-l_crypto](https://github.com/01org/isa-l_crypto)
+This project exposes SHA digest API (sha1, sha256, sha512) to the Node.js runtime via native addon.
 
 ## Usage:
 

@@ -1,8 +1,8 @@
 #include "common.h"
-#include "mh_sha512.h"
+#include "mh_sha256.h"
 
 static napi_value
-bind_mh_sha512_init(napi_env env, napi_callback_info info) {
+bind_mh_sha256_init(napi_env env, napi_callback_info info) {
   napi_value context;
   size_t argc = 1;
   void* context_data;
@@ -16,14 +16,14 @@ bind_mh_sha512_init(napi_env env, napi_callback_info info) {
                                            &context_data,
                                            &context_length));
 
-  result = mh_sha512_init((struct mh_sha512_ctx*)context_data);
+  result = mh_sha256_init((struct mh_sha256_ctx*)context_data);
 
   NAPI_CALL(env, napi_create_double(env, result, &js_result));
   return js_result;
 }
 
 static napi_value
-bind_mh_sha512_update(napi_env env, napi_callback_info info) {
+bind_mh_sha256_update(napi_env env, napi_callback_info info) {
   napi_value argv[2];
   size_t argc = 2;
   void* context_data;
@@ -43,7 +43,7 @@ bind_mh_sha512_update(napi_env env, napi_callback_info info) {
                                            &buffer_data,
                                            &buffer_length));
 
-  result = mh_sha512_update((struct mh_sha512_ctx*)context_data,
+  result = mh_sha256_update((struct mh_sha256_ctx*)context_data,
                             buffer_data,
                             (uint32_t)buffer_length);
 
@@ -52,7 +52,7 @@ bind_mh_sha512_update(napi_env env, napi_callback_info info) {
 }
 
 static napi_value
-bind_mh_sha512_finalize(napi_env env, napi_callback_info info) {
+bind_mh_sha256_finalize(napi_env env, napi_callback_info info) {
   napi_value argv[2];
   size_t argc = 2;
   void* context_data;
@@ -72,7 +72,7 @@ bind_mh_sha512_finalize(napi_env env, napi_callback_info info) {
                                            &buffer_data,
                                            &buffer_length));
 
-  result = mh_sha512_finalize((struct mh_sha512_ctx*)context_data,
+  result = mh_sha256_finalize((struct mh_sha256_ctx*)context_data,
                               buffer_data);
 
   NAPI_CALL(env, napi_create_double(env, result, &js_result));
@@ -80,19 +80,19 @@ bind_mh_sha512_finalize(napi_env env, napi_callback_info info) {
 }
 
 napi_value
-init_mh_sha512(napi_env env) {
-  napi_value exports, sizeof_mh_sha512_ctx;
+init_mh_sha256(napi_env env) {
+  napi_value exports, sizeof_mh_sha256_ctx;
 
   NAPI_CALL_RETURN_UNDEFINED(env,
       napi_create_double(env,
-                         sizeof(struct mh_sha512_ctx),
-                         &sizeof_mh_sha512_ctx));
+                         sizeof(struct mh_sha256_ctx),
+                         &sizeof_mh_sha256_ctx));
 
   napi_property_descriptor bindings[] = {
-    NAPI_DESCRIBE_BINDING(mh_sha512_init),
-    NAPI_DESCRIBE_BINDING(mh_sha512_update),
-    NAPI_DESCRIBE_BINDING(mh_sha512_finalize),
-    NAPI_DESCRIBE_VALUE(sizeof_mh_sha512_ctx)
+    NAPI_DESCRIBE_BINDING(mh_sha256_init),
+    NAPI_DESCRIBE_BINDING(mh_sha256_update),
+    NAPI_DESCRIBE_BINDING(mh_sha256_finalize),
+    NAPI_DESCRIBE_VALUE(sizeof_mh_sha256_ctx)
   };
 
   NAPI_CALL_RETURN_UNDEFINED(env, napi_create_object(env, &exports));
