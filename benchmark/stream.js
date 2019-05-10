@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const { Readable } = require('stream');
 const argv = require('yargs')
   .option('c', {
     alias: 'count',
@@ -59,7 +60,24 @@ const streamsDesired = argv.count;
 const windowStart = Math.round(streamsDesired * ((1 - argv.windowSizePercent) / 2));
 const windowEnd = streamsDesired - windowStart;
 const streamsToMeasure = windowEnd - windowStart;
-const inputFile = path.join(__dirname, 'input.txt');
+// const inputFile = path.join(__dirname, 'input.txt');
+
+const buf = new Uint8Array(16384);
+
+class DataProducer extends Readable {
+  constructor(options) {
+    super(options);
+    this._toProduce = options.toProduce;
+    this._soFar = 0;
+  }
+  _read(size) {
+    const toProduce = Math.min(this._toProduce - this._soFar, size);
+    this.push(toProduce === buf.byteLength ? buf :
+      toProduce > 0 ? new Uint8Array(buf.buffer, 0, toProduce) :
+      null);
+    this._soFar += toProduce;
+  }
+}
 
 function toNanoSeconds(hrtime) {
   return hrtime[0] * 1e9 + hrtime[1];
@@ -111,7 +129,8 @@ for (let streamIndex = 0; streamIndex < streamsDesired; streamIndex++) {
     results.elapsed = process.hrtime();
   }
 
-  fs.createReadStream(inputFile)
+  (new DataProducer({ toProduce: 3359545}))
+//  fs.createReadStream(inputFile)
     .pipe(crypto.createHash(argv.hash))
     .on('finish', onStreamFinish)
     ._measure = (streamIndex >= windowStart && streamIndex < windowEnd);
