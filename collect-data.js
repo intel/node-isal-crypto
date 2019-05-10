@@ -19,18 +19,20 @@ function getOneAverage(hash, isNode) {
   return (result / samples);
 }
 
-run('bash', [
-  '-c',
-  'git clean -xfd && ' +
-  'git submodule foreach --recursive git clean -xfd && ' +
-  'git submodule foreach --recursive git reset --hard && ' +
-  'git submodule update --init --recursive && ' +
-  'MAKEOPTS=-j120 npm ' +
-  (process.env.http_proxy ? '--proxy=' + process.env.http_proxy : '') +
-  ' install'
-], {
-  stdio: 'inherit'
-});
+if (process.argv[2] === 'rebuild') {
+  run('bash', [
+    '-c',
+    'git clean -xfd && ' +
+    'git submodule foreach --recursive git clean -xfd && ' +
+    'git submodule foreach --recursive git reset --hard && ' +
+    'git submodule update --init --recursive && ' +
+    'MAKEOPTS=-j120 npm ' +
+    (process.env.http_proxy ? '--proxy=' + process.env.http_proxy : '') +
+    ' install'
+  ], {
+    stdio: 'inherit'
+  });
+}
 
 hashes.forEach((hash) => {
   console.log('\r\033[K' + hash + ':\t' +
