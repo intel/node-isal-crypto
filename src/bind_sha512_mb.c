@@ -4,7 +4,7 @@
 #include <uv.h>
 #include "common.h"
 #include "multi_buffer.h"
-#include "sha256_mb.h"
+#include "sha512_mb.h"
 
 // JavaScript interface:
 // The addon returns an `ArrayBuffer` containing the manager, the contexts, and a
@@ -37,8 +37,8 @@ typedef struct {
 
 // The portion of the addon data that is exposed to JS.
 typedef struct {
-  SHA256_HASH_CTX_MGR manager;
-  SHA256_HASH_CTX contexts[SHA256_MAX_LANES];
+  SHA512_HASH_CTX_MGR manager;
+  SHA512_HASH_CTX contexts[SHA512_MAX_LANES];
   HashOp op;
 } JSAddonData;
 
@@ -48,7 +48,7 @@ typedef struct {
   JSAddonData js;
 
   // The hidden portion of the structure.
-  int32_t available_indices[SHA256_MAX_LANES];
+  int32_t available_indices[SHA512_MAX_LANES];
   int32_t next_context_idx;
 } AddonData;
 
@@ -58,14 +58,14 @@ static uv_key_t addon_data_key;
 
 // Convert the digest from hardware byte order to network byte order if the
 // context is complete.
-static inline SHA256_HASH_CTX*
-htonl_digest(SHA256_HASH_CTX* context) {
+static inline SHA512_HASH_CTX*
+htonl_digest(SHA512_HASH_CTX* context) {
   if (context != NULL) {
     if (hash_ctx_complete(context)) {
       int idx;
       unsigned char result[4];
 
-      for (idx = 0; idx < SHA256_DIGEST_NWORDS; idx++) {
+      for (idx = 0; idx < SHA512_DIGEST_NWORDS; idx++) {
         result[0] = (context->job.result_digest[idx] >> 24) & 0xff;
         result[1] = (context->job.result_digest[idx] >> 16) & 0xff;
         result[2] = (context->job.result_digest[idx] >> 8) & 0xff;
@@ -84,7 +84,7 @@ htonl_digest(SHA256_HASH_CTX* context) {
 static napi_value
 bind_op(napi_env env, napi_callback_info info) {
   AddonData* addon = uv_key_get(&addon_data_key);
-  SHA256_HASH_CTX* context = NULL;
+  SHA512_HASH_CTX* context = NULL;
   switch(addon->js.op.code) {
     case NOOP:
       return NULL;
@@ -126,7 +126,7 @@ bind_op(napi_env env, napi_callback_info info) {
     // Flush the manager and return the index of the resulting context to the
     // `context_idx` field.
     case MANAGER_FLUSH:
-      context = htonl_digest(sha256_ctx_mgr_flush(&addon->js.manager));
+      context = htonl_digest(sha512_ctx_mgr_flush(&addon->js.manager));
       addon->js.op.context_idx =
           ((context == NULL) ? -1 : (context - addon->js.contexts));
       break;
@@ -164,7 +164,7 @@ bind_op(napi_env env, napi_callback_info info) {
                   typedarray_type == napi_uint8_array,
                   "data must be a Uint8Array");
 
-      context = htonl_digest(sha256_ctx_mgr_submit(&addon->js.manager,
+      context = htonl_digest(sha512_ctx_mgr_submit(&addon->js.manager,
                                                    context,
                                                    data,
                                                    (uint32_t)length,
@@ -203,7 +203,7 @@ Addon_finalize(napi_env env, void* data, void* hint) {
 
 // Exposes the API to JS.
 napi_value
-init_sha256_mb(napi_env env) {
+init_sha512_mb(napi_env env) {
   size_t idx;
   napi_value js_addon, op, sizeof_manager, sizeof_context, js_max_lanes,
       sizeof_job, digest_offset_in_context;
@@ -232,7 +232,7 @@ init_sha256_mb(napi_env env) {
       return undefined;
     });
 
-    sha256_ctx_mgr_init(&addon->js.manager);
+    sha512_ctx_mgr_init(&addon->js.manager);
 
     for (idx = 0;
         idx < sizeof(addon->js.contexts) / sizeof(*(addon->js.contexts));
@@ -283,7 +283,7 @@ init_sha256_mb(napi_env env) {
                          ((char*)&addon->js.contexts[0].status) -
                              ((char*)&addon->js.contexts[0]), &sizeof_job));
   NAPI_CALL_RETURN_UNDEFINED(env,
-      napi_create_uint32(env, SHA256_MAX_LANES, &js_max_lanes));
+      napi_create_uint32(env, SHA512_MAX_LANES, &js_max_lanes));
 
   // Expose the `op()` function that is used as the driver of the native side.
   NAPI_CALL_RETURN_UNDEFINED(env, napi_create_function(env,
@@ -300,7 +300,7 @@ init_sha256_mb(napi_env env) {
     NAPI_DESCRIBE_VALUE(digest_offset_in_context),
     NAPI_DESCRIBE_VALUE(sizeof_job),
     NAPI_DESCRIBE_VALUE(op),
-    { "SHA256_MAX_LANES", NULL, NULL, NULL, NULL, js_max_lanes,
+    { "SHA512_MAX_LANES", NULL, NULL, NULL, NULL, js_max_lanes,
         napi_enumerable, NULL }
   };
 

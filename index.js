@@ -15,7 +15,7 @@ const isal = Object.assign(require('bindings')('isal_crypto'), {
   }
 });
 
-Object.assign(isal.sha256_mb, {
+Object.assign(isal.sha512_mb, {
   HashOpCode: {
     NOOP: 0,
     CONTEXT_REQUEST: 1,

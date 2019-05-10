@@ -7,16 +7,16 @@ const {
     HASH_CTX_FLAG: hashFlag,
     HASH_CTX_STS: hashStatus
   },
-  sha256_mb: {
+  sha512_mb: {
     HashOpCode: opCode,
     ContextResetFlag: resetFlag,
-    SHA256_MAX_LANES: maxLanes,
+    SHA512_MAX_LANES: maxLanes,
     sizeof_manager,
     sizeof_context,
     digest_offset_in_context,
     sizeof_job
   },
-  sha256_mb: native,
+  sha512_mb: native,
 } = isal;
 
 // We'll be subclassing stream's `Duplex` class.
@@ -166,7 +166,7 @@ class Manager {
 }
 
 // The implementation of a single stream
-class SHA256MBHashStream extends Duplex {
+class SHA512MBHashStream extends Duplex {
   constructor(options) {
     super(options);
     this._firstChunk = true;
@@ -228,4 +228,4 @@ class SHA256MBHashStream extends Duplex {
   }
 }
 
-module.exports = SHA256MBHashStream;
+module.exports = SHA512MBHashStream;
