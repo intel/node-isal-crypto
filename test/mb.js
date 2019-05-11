@@ -27,7 +27,7 @@ const results = {
 
 Object.keys(results).forEach((key) => {
   const child = spawnSync(process.execPath, [
-    benchmarkPath, '-t', '-H', key
+    benchmarkPath, JSON.stringify({ runAsTest: true, hash: key })
   ]);
   assert.deepStrictEqual(JSON.parse(child.stdout.toString()), results[key]);
 });

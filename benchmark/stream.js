@@ -40,7 +40,6 @@ const windowStart =
   Math.round(streamsDesired * ((1 - options.windowSizePercent) / 2));
 const windowEnd = streamsDesired - windowStart;
 const streamsToMeasure = windowEnd - windowStart;
-// const inputFile = path.join(__dirname, 'input.txt');
 
 const buf = new Uint8Array(16384);
 
@@ -83,8 +82,9 @@ for (let streamIndex = 0; streamIndex < streamsDesired; streamIndex++) {
     results.elapsed = process.hrtime();
   }
 
-  (new DataProducer({ toProduce: 3359545}))
-//  fs.createReadStream(inputFile)
+  (options.runAsTest ?
+      fs.createReadStream(path.join(__dirname, 'input.txt')) :
+      (new DataProducer({ toProduce: 3359545})))
     .pipe(crypto.createHash(options.hash))
     .on('finish', onStreamFinish)
     ._measure = (streamIndex >= windowStart && streamIndex < windowEnd);
