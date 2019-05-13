@@ -1,32 +1,39 @@
-const isal = Object.assign(require('bindings')('isal_crypto'), {
-  multi_buffer: {
-    HASH_CTX_FLAG: {
-      HASH_UPDATE: 0,
-      HASH_FIRST: 1,
-      HASH_LAST: 2,
-      HASH_ENTIRE: 3
-    },
-    HASH_CTX_STS: {
-      HASH_CTX_STS_IDLE: 0x00,
-      HASH_CTX_STS_PROCESSING: 0x01,
-      HASH_CTX_STS_LAST: 0x02,
-      HASH_CTX_STS_COMPLETE: 0x04
+const isal = require('bindings')('isal_crypto');
+const hashStreamClassFactory = require('./lib/mb-hash-stream-class-factory');
+
+const hashConstructors = {
+  sha256: hashStreamClassFactory({
+    multi_buffer: isal.multi_buffer,
+    native: isal.sha256_mb,
+    className: 'SHA256MBHashStream',
+    digestLength: 32
+  }),
+  sha512: hashStreamClassFactory({
+    multi_buffer: isal.multi_buffer,
+    native: isal.sha512_mb,
+    className: 'SHA512MBHashStream',
+    digestLength: 64
+  }),
+  sha1: hashStreamClassFactory({
+    multi_buffer: isal.multi_buffer,
+    native: isal.sha1_mb,
+    className: 'SHA1MBHashStream',
+    digestLength: 20
+  }),
+  md5: hashStreamClassFactory({
+    multi_buffer: isal.multi_buffer,
+    native: isal.md5_mb,
+    className: 'MD5MBHashStream',
+    digestLength: 16
+  })
+};
+
+module.exports = {
+  createHash: function(name) {
+    const hashConstructor = hashConstructors[name];
+    if (hashConstructor) {
+      return new hashConstructor();
     }
+    throw new Error('Unknown hash function: ' + name);
   }
-});
-
-Object.assign(isal.sha512_mb, {
-  HashOpCode: {
-    NOOP: 0,
-    CONTEXT_REQUEST: 1,
-    CONTEXT_RESET: 2,
-    MANAGER_SUBMIT: 3,
-    MANAGER_FLUSH: 4
-  },
-  ContextResetFlag: {
-    CONTEXT_RESET_FLAG_RELEASE: 0,
-    CONTEXT_RESET_FLAG_RETAIN: 1
-  }
-});
-
-module.exports = isal;
+};

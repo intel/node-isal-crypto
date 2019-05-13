@@ -7,14 +7,14 @@
         {
           'action_name': 'build',
           'inputs': [
-            'isa-l_crypto/Makefile.unx'
+            'isa-l_crypto/Makefile.am'
           ],
           'outputs': [
-            'isa-l_crypto/bin/isa-l_crypto.a'
+            'isa-l_crypto/.libs/libisal_crypto.a'
           ],
           'action': [
             'node',
-            'build-scripts/build-isa-l.js'
+            'build-scripts/build-isa-l.js',
           ]
         }
       ]
@@ -25,7 +25,7 @@
         '<(module_root_dir)/isa-l_crypto/include'
       ],
       'libraries': [
-        '<(module_root_dir)/isa-l_crypto/bin/isa-l_crypto.a'
+        '<(module_root_dir)/isa-l_crypto/.libs/libisal_crypto.a'
       ],
       'dependencies': [
         'csdk'
@@ -34,8 +34,12 @@
         '-Wall'
       ],
       'sources': [
-        'src/bind_mh_sha512.c',
-        'src/bind_sha512_mb.c',
+        'src/bind_mb_hash.h',
+        'src/bind_mh_sha256.c',
+        'src/bind_md5_mb.cc',
+        'src/bind_sha1_mb.cc',
+        'src/bind_sha256_mb.cc',
+        'src/bind_sha512_mb.cc',
         'src/common.h',
         'src/main.c',
       ]
