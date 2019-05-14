@@ -6,9 +6,12 @@ const { Readable } = require('stream');
 const options = {
   runNodeJS: false,
   runAsTest: false,
+  fromFile: false,
   windowSizePercent: 0.5,
   streamsToStart: 500,
-  hash: 'sha256'
+  streamLength: 3359545,
+  hash: 'sha256',
+  quiet: false
 };
 
 if (process.argv[2] === '-h' || process.argv[2] === '--help') {
@@ -82,9 +85,9 @@ for (let streamIndex = 0; streamIndex < streamsDesired; streamIndex++) {
     results.elapsed = process.hrtime();
   }
 
-  (options.runAsTest ?
+  (options.fromFile ?
       fs.createReadStream(path.join(__dirname, 'input.txt')) :
-      (new DataProducer({ toProduce: 3359545})))
+      (new DataProducer({ toProduce: options.streamLength })))
     .pipe(crypto.createHash(options.hash))
     .on('finish', onStreamFinish)
     ._measure = (streamIndex >= windowStart && streamIndex < windowEnd);
@@ -96,5 +99,7 @@ process.on('exit', () => {
     delete results.elapsed;
     delete results.streamsMeasured;
   }
-  console.log(JSON.stringify(results, null, 4));
+  if (!options.quiet) {
+    console.log(JSON.stringify(results, null, 4));
+  }
 });
