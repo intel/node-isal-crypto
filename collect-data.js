@@ -1,7 +1,7 @@
 const run = require('./build-scripts/lib/run');
 const { spawnSync, spawn } = require('child_process');
 const benchmarkPath = require('path').join(__dirname, 'benchmark', 'stream');
-const hashes = [ 'md5', 'sha1', 'sha256', 'sha512' ];
+const hashes = [ 'sha256', 'sha512' ];
 const samples = 20;
 
 function getOneAverage(hash, runNodeJS) {
