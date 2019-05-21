@@ -1,105 +1,106 @@
-const path = require('path');
-const fs = require('fs');
-const { spawn } = require('child_process');
-const { Readable } = require('stream');
+const {
+  Worker, isMainThread, parentPort, workerData
+} = require('worker_threads');
 
-const options = {
-  runNodeJS: false,
-  runAsTest: false,
-  fromFile: false,
-  windowSizePercent: 0.5,
-  streamsToStart: 500,
-  streamLength: 3359545,
-  hash: 'sha256',
-  quiet: false
-};
+if (isMainThread) {
+  // When running as the main thread, handle the command line, assemble the
+  // options, and start the workers.
+  const path = require('path');
 
-if (process.argv[2] === '-h' || process.argv[2] === '--help') {
-  console.log('Usage: ' + path.basename(__filename) +
-    ' [-h|options]\n\nwhere options is a JSON object. ' +
-    'The following properties/default values are used:\n' +
-    JSON.stringify(options, null, 4));
-  process.exit(0);
-} else if (process.argv[2] !== undefined) {
-  Object.assign(options, JSON.parse(process.argv[2]));
-}
+  const options = Object.assign({}, require('./defaults.json'));
 
-const crypto = options.runNodeJS ? require('crypto') : require('..');
-
-if (options.runAsTest) {
-  options.windowSizePercent = 0;
-}
-
-const results = {
-  streamsDesired: options.streamsToStart,
-  streamsStarted: 0,
-  streamsCompleted: 0,
-  streamsMeasured: 0,
-  elapsed: null
-};
-
-const streamsDesired = options.streamsToStart;
-const windowStart =
-  Math.round(streamsDesired * ((1 - options.windowSizePercent) / 2));
-const windowEnd = streamsDesired - windowStart;
-const streamsToMeasure = windowEnd - windowStart;
-
-const buf = new Uint8Array(16384);
-
-class DataProducer extends Readable {
-  constructor(options) {
-    super(options);
-    this._toProduce = options.toProduce;
-    this._soFar = 0;
+  if (process.argv[2] === '-h' || process.argv[2] === '--help') {
+    console.log('Usage: '
+      + path.basename(__filename)
+      + ' [-h|options]\n\nwhere options is a JSON object. '
+      + 'The following properties/default values are used:\n'
+      + JSON.stringify(options, null, 4));
+    process.exit(0);
+  } else if (process.argv[2] !== undefined) {
+    Object.assign(options, JSON.parse(process.argv[2]));
   }
-  _read(size) {
-    const toProduce = Math.min(this._toProduce - this._soFar, size);
-    this.push(toProduce === buf.byteLength ? buf :
-      toProduce > 0 ? new Uint8Array(buf.buffer, 0, toProduce) :
-      null);
-    this._soFar += toProduce;
-  }
-}
 
-function toNanoSeconds(hrtime) {
-  return hrtime[0] * 1e9 + hrtime[1];
-}
-
-function onStreamFinish() {
-  const checksum = this.read().toString('hex');
   if (options.runAsTest) {
-    results[checksum] = '';
+    options.windowSizePercent = 0;
   }
-  results.streamsCompleted++;
-  if (this._measure) {
-    results.streamsMeasured++;
-    if (results.streamsMeasured === streamsToMeasure &&
-        results.elapsed !== null) {
-      results.elapsed = toNanoSeconds(process.hrtime(results.elapsed));
+
+  // When benchmarking, store the results in a SharedArrayBuffer with
+  // the following structure:
+  // {
+  //   uint32 nextIndex;
+  //   {
+  //     uint32 streamsMeasured;
+  //     uint32[2] start;
+  //     uint32[2] end;
+  //   } results[cpuCount];
+  // }
+  const resultsData = new SharedArrayBuffer(4 + options.cpus * 20);
+
+  function* workerList(cpuCount) {
+    for (let index = 0; index < cpuCount; index += 1) {
+      yield new Promise((accept) => new Worker(__filename, {
+        workerData: Object.assign(options, options.runAsTest ? {} : {
+          resultsData
+        })
+      // When benchmarking, we are not interested in messages coming in from the
+      // thread, because the data is being stored in the SharedArrayBuffer
+      }).on(options.runAsTest ? 'message' : 'exit', accept));
     }
   }
+
+  Promise.all([...workerList(options.cpus)]).then((results) => {
+    if (options.runAsTest) {
+      results = results.reduce((soFar, item) => {
+        soFar.streamsStarted += item.streamsStarted;
+        soFar.streamsCompleted += item.streamsCompleted;
+        return soFar;
+      });
+    } else {
+      const resultsArray = new Uint32Array(resultsData);
+      results = {
+        streamsMeasured: resultsArray[1],
+        start: resultsArray[2] * 1e9 + resultsArray[3],
+        end: resultsArray[4] * 1e9 + resultsArray[5]
+      };
+      for (let index = 1; index < options.cpus; index += 1) {
+        results.streamsMeasured += resultsArray[index * 5 + 1];
+        results.start = Math.min(results.start,
+          resultsArray[index * 5 + 2] * 1e9 + resultsArray[index * 5 + 3]);
+        results.end = Math.min(results.end,
+          resultsArray[index * 5 + 4] * 1e9 + resultsArray[index * 5 + 5]);
+      }
+    }
+    if (options.runAsTest) {
+      delete results.start;
+      delete results.end;
+      delete results.streamsMeasured;
+    } else {
+      results.elapsed = results.end - results.start;
+      delete results.start;
+      delete results.end;
+    }
+    if (!options.quiet) {
+      console.log(JSON.stringify(results, null, 4));
+    }
+  });
+} else {
+  // When running as a worker thread, run the runner and send the results to
+  // the main thread.
+  const runner = require('./runner');
+  if (workerData.runAsTest) {
+    runner(workerData).then((results) => parentPort.postMessage(results));
+  } else {
+    const { resultsData } = workerData;
+    const resultsArray = new Uint32Array(resultsData);
+    const myIndex = Atomics.add(resultsArray, 0, 1);
+    runner(workerData).then((results) => {
+      resultsArray[myIndex * 5 + 1] = results.streamsMeasured;
+      if (results.streamsMeasured > 0) {
+        resultsArray[myIndex * 5 + 2] = results.start[0];
+        resultsArray[myIndex * 5 + 3] = results.start[1];
+        resultsArray[myIndex * 5 + 4] = results.end[0];
+        resultsArray[myIndex * 5 + 5] = results.end[1];
+      }
+    });
+  }
 }
-
-for (let streamIndex = 0; streamIndex < streamsDesired; streamIndex++) {
-  if (streamIndex === windowStart) {
-    results.elapsed = process.hrtime();
-  }
-
-  (options.fromFile ?
-      fs.createReadStream(path.join(__dirname, 'input.txt')) :
-      (new DataProducer({ toProduce: options.streamLength })))
-    .pipe(crypto.createHash(options.hash))
-    .on('finish', onStreamFinish)
-    ._measure = (streamIndex >= windowStart && streamIndex < windowEnd);
-  results.streamsStarted++;
-}
-
-process.on('exit', () => {
-  if (options.runAsTest) {
-    delete results.elapsed;
-    delete results.streamsMeasured;
-  }
-  if (!options.quiet) {
-    console.log(JSON.stringify(results, null, 4));
-  }
-});

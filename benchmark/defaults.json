@@ -1,0 +1,11 @@
+{
+  "runNodeJS": false,
+  "runAsTest": false,
+  "fromFile": false,
+  "windowSizePercent": 0.5,
+  "streamsToStart": 500,
+  "streamLength": 3359545,
+  "hash": "sha256",
+  "cpus": 1,
+  "quiet": false
+}
