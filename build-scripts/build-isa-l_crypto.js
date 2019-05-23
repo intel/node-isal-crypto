@@ -1,6 +1,5 @@
 const path = require('path');
 const fs = require('fs');
-const rimraf = require('rimraf');
 const run = require('./lib/run');
 
 const isalDir = path.resolve(path.join(__dirname, '..', 'isa-l_crypto'));
