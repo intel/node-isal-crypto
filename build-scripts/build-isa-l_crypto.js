@@ -22,7 +22,9 @@ if (process.env.npm_config_debug === 'true') {
 }
 
 run(path.join(isalDir, 'configure'),
-  (process.env.npm_config_debug === 'true' ? ['--enable-debug'] : []), {
+  ['--disable-shared']
+    .concat(process.env.npm_config_debug === 'true' ?
+      ['--enable-debug'] : []), {
   env: Object.assign({}, process.env, {
     CFLAGS: Array.from(cflags).join(' ')
   }),
