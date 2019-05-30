@@ -1,6 +1,8 @@
 #include "sha512_mb.h"
 #include "bind_mb_hash.h"
 
+// Convert a uint64_t-based digest from hardware byte order to network byte
+// order.
 static inline void
 sha512_htonl(SHA512_HASH_CTX* context) {
     int idx;
@@ -29,7 +31,7 @@ sha512_htonl(SHA512_HASH_CTX* context) {
 
 extern "C" napi_value
 init_sha512_mb(napi_env env) {
-  return InitMBHash<
+  return MBHashAddon<
       SHA512_HASH_CTX_MGR,
       SHA512_HASH_CTX,
       SHA512_MAX_LANES,
@@ -37,5 +39,5 @@ init_sha512_mb(napi_env env) {
       sha512_ctx_mgr_flush,
       sha512_ctx_mgr_submit,
       sha512_htonl
-  >(env);
+  >::Init(env);
 }
