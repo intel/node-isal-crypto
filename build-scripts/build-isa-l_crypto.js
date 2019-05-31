@@ -1,14 +1,16 @@
-const path = require('path');
 const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const run = require('./lib/run');
 
 const isalDir = path.resolve(path.join(__dirname, '..', 'isa-l_crypto'));
-const isDebugBuild = (process.env.npm_config_debug === 'true');
 
-run(path.join(isalDir, 'autogen.sh'), [], {
-  stdio: 'inherit',
-  cwd: isalDir
-});
+if (!fs.existsSync(path.join(isalDir, 'configure'))) {
+  run(path.join(isalDir, 'autogen.sh'), [], {
+    stdio: 'inherit',
+    cwd: isalDir
+  });
+}
 
 const cflags = new Set(['-fPIC', '-DPIC', '-O2']);
 if (process.env.npm_config_perf === 'true') {
@@ -20,18 +22,23 @@ if (process.env.npm_config_debug === 'true') {
   cflags.delete('-O2');
 }
 
-run(path.join(isalDir, 'configure'),
-  ['--disable-shared']
-    .concat(process.env.npm_config_debug === 'true' ?
-      ['--enable-debug'] : []), {
-  env: Object.assign({}, process.env, {
-    CFLAGS: Array.from(cflags).join(' ')
-  }),
-  stdio: 'inherit',
-  cwd: isalDir
-});
+if (!fs.existsSync(path.join(isalDir, 'Makefile'))) {
+  run(path.join(isalDir, 'configure'),
+    ['--disable-shared']
+      .concat((process.env.npm_config_debug === 'true'
+        ? ['--enable-debug']
+        : [])), {
+      env: Object.assign({}, process.env, {
+        CFLAGS: Array.from(cflags).join(' ')
+      }),
+      stdio: 'inherit',
+      cwd: isalDir
+    });
+}
 
-run('make', [], {
-  stdio: 'inherit',
-  cwd: isalDir
-});
+if (!fs.existsSync(path.join(isalDir, '.libs', 'libisal_crypto.a'))) {
+  run('make', ['-j', Math.round(os.cpus().length * 1.5)], {
+    stdio: 'inherit',
+    cwd: isalDir
+  });
+}

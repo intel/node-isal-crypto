@@ -4,7 +4,7 @@
   "description": "Node.js bindings for the Intel(R) Intelligent Storage Acceleration Library Crypto Version",
   "main": "index.js",
   "scripts": {
-    "test": "node test",
+    "test": "eslint . && node test",
     "clean": "git clean -xfd && git submodule foreach --recursive git clean -xfd && git submodule foreach --recursive git reset --hard && git submodule update --init --recursive"
   },
   "repository": {
@@ -23,5 +23,10 @@
   "homepage": "https://github.com/intel/node-isa-l_crypto#readme",
   "dependencies": {
     "bindings": "^1.5.0"
+  },
+  "devDependencies": {
+    "eslint": "^5.16.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-plugin-import": "^2.17.3"
   }
 }
