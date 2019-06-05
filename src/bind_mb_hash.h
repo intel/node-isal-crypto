@@ -1,19 +1,17 @@
 #ifndef SRC_BIND_MB_HASH_H_
 #define SRC_BIND_MB_HASH_H_
 
-#include <assert.h>
 #include <stdlib.h>
-#include <uv.h>
 #include "common.h"
 #include "multi_buffer.h"
 
 // JavaScript interface:
-// The addon returns an `ArrayBuffer` containing the manager, the contexts, and
-// a surface for describing an operation that can be executed using the `op()`
-// method which can be found on the `ArrayBuffer` on the JS side. This latter
-// structure allows us to avoid heavy passing of parameters to `op()`.
+// The addon returns an `ArrayBuffer` containing the contexts and a surface for
+// describing an operation that can be executed using the `op()` static method
+// which can be found on the `ArrayBuffer` on the JS side. This latter structure
+// allows us to avoid heavy passing of parameters to `op()`.
 
-// The operations that can be written into the surface that `op()` reads.
+// This enum lists the operations that can be performed by `op()`.
 typedef enum {
   CONTEXT_REQUEST = 1,
   CONTEXT_RESET,
@@ -21,33 +19,14 @@ typedef enum {
   MANAGER_FLUSH
 } HashOpCode;
 
-// For CONTEXT_RESET, the context can either be re-added to the list of
-// available contexts or reassigned immediately to a different stream.
+// For the CONTEXT_RESET operation, the context can either be re-added to the
+// list of available contexts or reassigned immediately to a different stream.
 typedef enum {
   CONTEXT_RESET_FLAG_RELEASE,
   CONTEXT_RESET_FLAG_RETAIN
 } ContextResetFlag;
 
-// The surface read from and written to by `op()`, which informs it as to what
-// JS wants to do.
-struct HashOp {
-  int32_t code;
-  int32_t context_idx;
-  int32_t flag;
-};
-
-// Items needed for storing the addon data in a thread-local fashion.
-static uv_once_t init_addon_data_key_once = UV_ONCE_INIT;
-static uv_key_t addon_data_key;
-
-// This is called once for all threads to spawn within this process. It
-// allocates the thread-local storage for the addon data.
-static void
-create_addon_data_key_once() {
-  int result = uv_key_create(&addon_data_key);
-  assert(result == 0 && "Failed to create thread-local addon data key");
-}
-
+// This is the main class defining the addon.
 template <
   typename ManagerType,
   typename ContextType,
@@ -63,24 +42,17 @@ template <
 class MBHashAddon {
  public:
 
-  // The portion of the addon data that is exposed to JS.
-  struct JSAddonData {
-    ContextType contexts[lane_count];
-    HashOp op;
-  };
+  MBHashAddon() {
+    ManagerInit(&manager);
+    for (size_t idx = 0; idx < lane_count; idx++) {
+      hash_ctx_init(&js.contexts[idx]);
+      available_indices[idx] = idx;
+    }
+    next_context_idx = lane_count - 1;
+  }
 
-  // The entirety of the addon data.
-  struct AddonData {
-    JSAddonData js;
-
-    // The hidden portion of the structure.
-    ManagerType manager;
-    int32_t available_indices[lane_count];
-    int32_t next_context_idx;
-  };
-
-  static inline void
-  process_manager_result(AddonData* addon, ContextType* context) {
+  inline void
+  process_manager_result(ContextType* context) {
     // Convert hash from hardware to network byte order when it's complete.
     if (context != nullptr && hash_ctx_complete(context)) {
       hash_htonl(context);
@@ -88,27 +60,24 @@ class MBHashAddon {
 
     // Write the resulting context's index into `context_id` to serve as the
     // return value in JS.
-    addon->js.op.context_idx =
-        (context == nullptr ? -1 : (context - addon->js.contexts));
+    js.op.context_idx = (context == nullptr ? -1 : (context - js.contexts));
   }
 
   // Main interface between JS and native. Read what JS wrote into the `op`
-  // portion of the JSAddonData structure, and synchronously execute the
-  // request. A return value, if present, is always a context index. It is
-  // placed into the `context_idx` field of `op` before returning so that JS
-  // might read it.
+  // portion of the `js` structure, and synchronously execute the request. A
+  // return value, if present, is always a context index. It is placed into the
+  // context_idx` field of `op` before returning so that JS might read it.
   static napi_value
   bind_op(napi_env env, napi_callback_info info) {
-    AddonData* addon = static_cast<AddonData*>(uv_key_get(&addon_data_key));
-    switch(addon->js.op.code) {
+    switch(addon.js.op.code) {
       // A context is being requested. If one is available, write it into the
       // `context_id` field and remove it from the list of available indices so
-      // that JS might pick it up.
+      // that JS might pick it up. If none are available, -1 will be written.
       case CONTEXT_REQUEST:
-        addon->js.op.context_idx = -1;
-        if (addon->next_context_idx >= 0) {
-          addon->js.op.context_idx =
-            addon->available_indices[addon->next_context_idx--];
+        addon.js.op.context_idx = -1;
+        if (addon.next_context_idx >= 0) {
+          addon.js.op.context_idx =
+            addon.available_indices[addon.next_context_idx--];
         }
         break;
 
@@ -118,23 +87,23 @@ class MBHashAddon {
       // continue to be used by JS.
       case CONTEXT_RESET:
         NAPI_ASSERT(env,
-                    addon->js.op.context_idx >= 0 &&
-                        addon->js.op.context_idx <
+                    addon.js.op.context_idx >= 0 &&
+                        addon.js.op.context_idx <
                             static_cast<int32_t>(lane_count),
                     "CONTEXT_RESET index out of range");
         NAPI_ASSERT(env,
-                    addon->js.op.flag == CONTEXT_RESET_FLAG_RELEASE ||
-                        addon->js.op.flag == CONTEXT_RESET_FLAG_RETAIN,
+                    addon.js.op.flag == CONTEXT_RESET_FLAG_RELEASE ||
+                        addon.js.op.flag == CONTEXT_RESET_FLAG_RETAIN,
                     "CONTEXT_RESET flag must be either RELEASE or RETAIN");
-        hash_ctx_init(&addon->js.contexts[addon->js.op.context_idx]);
-        if (addon->js.op.flag == CONTEXT_RESET_FLAG_RELEASE) {
-          addon->available_indices[++addon->next_context_idx] =
-              addon->js.op.context_idx;
+        hash_ctx_init(&addon.js.contexts[addon.js.op.context_idx]);
+        if (addon.js.op.flag == CONTEXT_RESET_FLAG_RELEASE) {
+          addon.available_indices[++addon.next_context_idx] =
+              addon.js.op.context_idx;
         }
         break;
 
       case MANAGER_FLUSH:
-        process_manager_result(addon, ManagerFlush(&addon->manager));
+        addon.process_manager_result(ManagerFlush(&addon.manager));
         break;
 
       // Submit to the manager. The data is a JS `Uint8Array` given as the sole
@@ -145,7 +114,7 @@ class MBHashAddon {
         napi_value typedarray;
         napi_typedarray_type typedarray_type;
 
-        // Retrieve the arguments given by JS.
+        // Retrieve the sole argument given by JS.
         NAPI_CALL(env, napi_get_cb_info(env,
                                         info,
                                         &argc,
@@ -167,12 +136,12 @@ class MBHashAddon {
                     typedarray_type == napi_uint8_array,
                     "data must be a Uint8Array");
 
-        process_manager_result(addon,
-            ManagerSubmit(&addon->manager,
-                          &addon->js.contexts[addon->js.op.context_idx],
+        addon.process_manager_result(
+            ManagerSubmit(&addon.manager,
+                          &addon.js.contexts[addon.js.op.context_idx],
                           data,
                           (uint32_t)length,
-                          static_cast<HASH_CTX_FLAG>(addon->js.op.flag)));
+                          static_cast<HASH_CTX_FLAG>(addon.js.op.flag)));
         break;
       }
 
@@ -185,55 +154,11 @@ class MBHashAddon {
     return nullptr;
   }
 
-  // Destroys the addon data when the addon is unloaded.
-  static void
-  Addon_finalize(napi_env env, void* data, void* hint) {
-    free(data);
-  }
-
-  // Exposes the API to JS.
+  // Exposes the API to JS. This may be called multiple times from one thread.
   static napi_value
   Init(napi_env env) {
-    size_t idx;
     napi_value jsAddon, op, sizeofContext, maxLanes, sizeofJob,
         digestOffsetInContext;
-    AddonData* addon;
-
-    // Establish the addon data for this thread.
-
-    // Ensure the thread-local area where we store addon data for this thread
-    // exists.
-    uv_once(&init_addon_data_key_once, create_addon_data_key_once);
-
-    // Retrieve the addon data from thread-local storage.
-    addon = static_cast<AddonData*>(uv_key_get(&addon_data_key));
-
-    // The data will be absent if this is the first instance of the addon on
-    // this thread. In that case, we need to allocate it and store the pointer
-    // in the thread-local storage.
-    if (addon == nullptr) {
-      addon = static_cast<AddonData*>(malloc(sizeof(*addon)));
-      NAPI_ASSERT_BLOCK(env,
-                        addon != nullptr,
-                        "Failed to allocate addon data", {
-        napi_value undefined;
-        napi_status status = napi_get_undefined(env, &undefined);
-        assert(status == napi_ok && "Failed to retrieve undefined");
-        return undefined;
-      });
-
-      ManagerInit(&addon->manager);
-
-      for (idx = 0; idx < lane_count; idx++) {
-        hash_ctx_init(&addon->js.contexts[idx]);
-        addon->available_indices[idx] = idx;
-      }
-
-      addon->next_context_idx = idx - 1;
-
-      // Save a pointer to the addon data in thread-local storage.
-      uv_key_set(&addon_data_key, addon);
-    }
 
     // Below we expose the JS portion of the addon data as well as some useful
     // sizes to JS. We use pointer arithmetic instead of `sizeof()` because some
@@ -243,29 +168,30 @@ class MBHashAddon {
     // Expose the portion of the addon data relevant to JS.
     NAPI_CALL_RETURN_UNDEFINED(env,
         napi_create_external_arraybuffer(env,
-                         addon,
-                         reinterpret_cast<char*>(&addon->available_indices[0]) -
-                             reinterpret_cast<char*>(addon),
-                         Addon_finalize,
-                         nullptr,
-                         &jsAddon));
+                                         &addon.js,
+                                         reinterpret_cast<char*>(&addon.js.op) +
+                                            sizeof(addon.js.op) -
+                                            reinterpret_cast<char*>(&addon.js),
+                                         nullptr,
+                                         nullptr,
+                                         &jsAddon));
 
     // Expose some sizes that will help JS properly index into the data exposed
     // above.
     NAPI_CALL_RETURN_UNDEFINED(env,
         napi_create_uint32(env,
-                           reinterpret_cast<char*>(&addon->js.contexts[1]) -
-                               reinterpret_cast<char*>(&addon->js.contexts[0]),
+                           reinterpret_cast<char*>(&addon.js.contexts[1]) -
+                               reinterpret_cast<char*>(&addon.js.contexts[0]),
                            &sizeofContext));
     NAPI_CALL_RETURN_UNDEFINED(env,
         napi_create_uint32(env,
-          reinterpret_cast<char*>(&addon->js.contexts[0].job.result_digest[0]) -
-              reinterpret_cast<char*>(&addon->js.contexts[0]),
+          reinterpret_cast<char*>(&addon.js.contexts[0].job.result_digest[0]) -
+              reinterpret_cast<char*>(&addon.js.contexts[0]),
           &digestOffsetInContext));
     NAPI_CALL_RETURN_UNDEFINED(env,
         napi_create_uint32(env,
-                        reinterpret_cast<char*>(&addon->js.contexts[0].status) -
-                            reinterpret_cast<char*>(&addon->js.contexts[0]),
+                        reinterpret_cast<char*>(&addon.js.contexts[0].status) -
+                            reinterpret_cast<char*>(&addon.js.contexts[0]),
                         &sizeofJob));
     NAPI_CALL_RETURN_UNDEFINED(env,
         napi_create_uint32(env, lane_count, &maxLanes));
@@ -276,7 +202,7 @@ class MBHashAddon {
                              "op",
                              NAPI_AUTO_LENGTH,
                              bind_op,
-                             addon,
+                             nullptr,
                              &op));
 
     // Collect the values defined above into an array of property descriptors.
@@ -298,6 +224,58 @@ class MBHashAddon {
     // Return the addon data decorated with the extra properties.
     return jsAddon;
   }
+
+  // This is the structure holding the information exposed to JS.
+  struct {
+    // These are the contexts which we will be passing into the manager.
+    ContextType contexts[lane_count];
+
+    // This is the surface read from and written to by `op()` to inform it as to
+    // what JS wants to do.
+    struct {
+      int32_t code;
+      int32_t context_idx;
+      int32_t flag;
+    } op;
+  } js;
+
+  // The hidden portion of the structure.
+  ManagerType manager;
+  int32_t available_indices[lane_count];
+  int32_t next_context_idx;
+
+  // Global static per-thread singleton instance of this class.
+  static thread_local MBHashAddon addon;
 };
+
+// The single instance must be declared again outside the class.
+template <
+  typename ManagerType,
+  typename ContextType,
+  size_t lane_count,
+  void (*ManagerInit)(ManagerType*),
+  ContextType* (*ManagerFlush)(ManagerType*),
+  ContextType* (*ManagerSubmit)(ManagerType*,
+                                ContextType*,
+                                const void*,
+                                uint32_t,
+                                HASH_CTX_FLAG),
+  void (*hash_htonl)(ContextType*)>
+ thread_local MBHashAddon<
+  ManagerType,
+  ContextType,
+  lane_count,
+  ManagerInit,
+  ManagerFlush,
+  ManagerSubmit,
+  hash_htonl>
+MBHashAddon<
+  ManagerType,
+  ContextType,
+  lane_count,
+  ManagerInit,
+  ManagerFlush,
+  ManagerSubmit,
+  hash_htonl>::addon;
 
 #endif  // SRC_BIND_MB_HASH_H_
