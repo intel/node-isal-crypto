@@ -3,8 +3,6 @@
 #include "sha256_mb.h"
 #include "sha512_mb.h"
 
-extern "C" napi_value init_mh_sha256(napi_env);
-
 // Convert a uint32_t-based digest from hardware byte order to network byte
 // order.
 static inline void
@@ -76,16 +74,6 @@ NAPI_MODULE_INIT(/* napi_env env, napi_value exports */) {
   >::Init(env);
 
   napi_property_descriptor sub_exports[] = {
-    {
-      "mh_sha256",
-      nullptr,
-      nullptr,
-      nullptr,
-      nullptr,
-      init_mh_sha256(env),
-      napi_enumerable,
-      nullptr
-    },
     NAPI_DESCRIBE_VALUE(sha256_mb),
     NAPI_DESCRIBE_VALUE(sha512_mb)
   };
