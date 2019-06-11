@@ -22,7 +22,7 @@ typedef enum {
 // For the CONTEXT_RESET operation, the context can either be re-added to the
 // list of available contexts or reassigned immediately to a different stream.
 typedef enum {
-  CONTEXT_RESET_FLAG_RELEASE,
+  CONTEXT_RESET_FLAG_RELEASE = 1,
   CONTEXT_RESET_FLAG_RETAIN
 } ContextResetFlag;
 
@@ -86,12 +86,12 @@ class MBHashAddon {
       // corresponding context should merely be reinitialized so that it might
       // continue to be used by JS.
       case CONTEXT_RESET:
-        NAPI_ASSERT(env,
+        NAPI_ASSERT_TYPE(env, range, "CONTEXT_RESET_INDEX_OUT_OF_RANGE",
                     addon.js.op.context_idx >= 0 &&
                         addon.js.op.context_idx <
                             static_cast<int32_t>(lane_count),
                     "CONTEXT_RESET index out of range");
-        NAPI_ASSERT(env,
+        NAPI_ASSERT_TYPE(env, range, "CONTEXT_RESET_FLAG_OUT_OF_RANGE",
                     addon.js.op.flag == CONTEXT_RESET_FLAG_RELEASE ||
                         addon.js.op.flag == CONTEXT_RESET_FLAG_RETAIN,
                     "CONTEXT_RESET flag must be either RELEASE or RETAIN");
@@ -132,7 +132,7 @@ class MBHashAddon {
                                                 nullptr,
                                                 nullptr));
 
-        NAPI_ASSERT(env,
+        NAPI_ASSERT_TYPE(env, type, "CHUNK_MUST_BE_UINT8ARRAY",
                     typedarray_type == napi_uint8_array,
                     "data must be a Uint8Array");
 

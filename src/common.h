@@ -14,17 +14,24 @@
     assert(status == napi_ok && "Failed to throw error");          \
   } while(0)
 
-#define NAPI_ASSERT_BLOCK(env, condition, message, returnBlock)  \
-  do {                                                           \
-    if (!(condition)) {                                          \
-      napi_status status = napi_throw_error((env), "", message); \
-      assert(status == napi_ok && "Failed to throw error");      \
-      returnBlock                                                \
-    }                                                            \
+#define NAPI_ASSERT(env, condition, code, message)                     \
+  do {                                                                 \
+    if (!(condition)) {                                                \
+      napi_status status = napi_throw_error((env), (code), (message)); \
+      assert(status == napi_ok && "Failed to throw error");            \
+      return NULL;                                                     \
+    }                                                                  \
   } while(0)
 
-#define NAPI_ASSERT(env, condition, message)                         \
-  NAPI_ASSERT_BLOCK((env), (condition), (message), { return NULL; })
+#define NAPI_ASSERT_TYPE(env, error_type, code, condition, message)      \
+  do {                                                                   \
+    if (!(condition)) {                                                  \
+      napi_status status =                                               \
+          napi_throw_ ## error_type ## _error((env), (code), message);   \
+      assert(status == napi_ok && "Failed to throw error");              \
+      return NULL;                                                       \
+    }                                                                    \
+  } while(0)
 
 #define NAPI_CALL_BLOCK(env, call, returnBlock)                      \
   do {                                                               \
@@ -35,11 +42,8 @@
     }                                                                \
   } while(0)
 
-#define NAPI_CALL_RETURN_VALUE(env, call, returnValue) \
-  NAPI_CALL_BLOCK((env), (call), { return returnValue; })
-
 #define NAPI_CALL(env, call) \
-  NAPI_CALL_RETURN_VALUE((env), (call), NULL)
+  NAPI_CALL_BLOCK((env), (call), { return NULL; })
 
 #define NAPI_CALL_RETURN_UNDEFINED(env, call)                             \
   NAPI_CALL_BLOCK((env), (call), {                                        \
@@ -48,18 +52,6 @@
     assert(status == napi_ok && "Unable to retrieve JS undefined value"); \
     return undefined;                                                     \
   })
-
-#define NAPI_CALL_RETURN_VOID(env, call) \
-  do {                                   \
-    napi_status status = (call);         \
-    if (status != napi_ok) {             \
-      NAPI_THROW_LAST_ERROR((env));      \
-      return;                            \
-    }                                    \
-  } while(0)
-
-#define NAPI_DESCRIBE_BINDING(binding) \
-  { #binding, NULL, bind_##binding, NULL, NULL, NULL, napi_enumerable, NULL }
 
 #define NAPI_DESCRIBE_VALUE(value) \
   { #value, NULL, NULL, NULL, NULL, (value), napi_enumerable, NULL }
