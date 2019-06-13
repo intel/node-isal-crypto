@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "eslint . && node test",
-    "clean": "git clean -xfd && git submodule foreach --recursive git clean -xfd && git submodule foreach --recursive git reset --hard && git submodule update --init --recursive"
+    "clean": "git clean -xfd && git submodule foreach --recursive git clean -xfd && git submodule foreach --recursive git reset --hard && git submodule update --init --recursive",
+    "coverage": "node test -c && c8 report --reporter=html && gcovr -r src --html --html-details -o coverage/native.html --object-directory $(pwd)/build/Release/obj.target/isal_crypto/src || true"
   },
   "repository": {
     "type": "git",
@@ -24,8 +25,12 @@
   "dependencies": {
     "bindings": "^1.5.0"
   },
+  "eslintIgnore": [
+    "coverage"
+  ],
   "devDependencies": {
     "benchmark": "^2.1.4",
+    "c8": "^5.0.1",
     "eslint": "^5.16.0",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-plugin-import": "^2.17.3"

@@ -1,6 +1,6 @@
 const assert = require('assert');
-const { spawnSync } = require('child_process');
 const path = require('path');
+const testRunner = require('./lib/test-runner');
 
 const benchmarkPath = path.resolve(
   path.join(__dirname, '..', 'benchmark', 'stream.js')
@@ -31,29 +31,19 @@ const internalHashes = {
   }
 };
 
-function featureDetectWorker() {
-  try {
-    require('worker_threads');
-    return true;
-  } catch (anError) {
-    return false;
-  }
-}
-
 [1, 2].forEach((cpus) => {
   Object.keys(fileHashes).forEach((hash) => {
-    const child = spawnSync(process.execPath,
-      (featureDetectWorker() ? [] : ['--experimental-worker']).concat([
-        benchmarkPath,
-        JSON.stringify({
-          runNodeJS: false,
-          hash,
-          cpus,
-          runAsTest: true,
-          fromFile: true,
-          streamsToStart: 3
-        })
-      ]));
+    const child = testRunner([
+      benchmarkPath,
+      JSON.stringify({
+        runNodeJS: false,
+        hash,
+        cpus,
+        runAsTest: true,
+        fromFile: true,
+        streamsToStart: 3
+      })
+    ]);
     console.log('cpus: ' + cpus + ', few ' + hash + ' mb streams');
     assert.deepStrictEqual(JSON.parse(child.stdout.toString()),
       Object.assign({}, {
@@ -65,18 +55,17 @@ function featureDetectWorker() {
   [false, true].forEach((runNodeJS) => {
     [true, false].forEach((fromFile) => {
       Object.keys(fileHashes).forEach((hash) => {
-        const child = spawnSync(process.execPath,
-          (featureDetectWorker() ? [] : ['--experimental-worker']).concat([
-            benchmarkPath, JSON.stringify(Object.assign({
-              runNodeJS,
-              hash,
-              cpus,
-              fromFile,
-              runAsTest: true,
-            }, fromFile ? {} : {
-              streamLength: 1048576
-            }))
-          ]));
+        const child = testRunner([
+          benchmarkPath, JSON.stringify(Object.assign({
+            runNodeJS,
+            hash,
+            cpus,
+            fromFile,
+            runAsTest: true,
+          }, fromFile ? {} : {
+            streamLength: 1048576
+          }))
+        ]);
         console.log(
           'cpus: ' + cpus + ',',
           (fromFile ? 'file' : 'internal'),

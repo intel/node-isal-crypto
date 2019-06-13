@@ -1,3 +1,7 @@
+if (process.argv[2] === '-c') {
+  require('./lib/test-runner')([__filename]);
+}
+
 const assert = require('assert');
 const native = require('../native');
 

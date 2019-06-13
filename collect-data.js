@@ -1,6 +1,5 @@
 const path = require('path');
 const { spawnSync } = require('child_process');
-const run = require('./build-scripts/lib/run');
 
 const benchmarkPath = path.join(__dirname, 'benchmark', 'stream');
 const hashes = ['sha256', 'sha512'];
@@ -49,7 +48,7 @@ function measureOneHash(hash) {
 }
 
 if (process.argv[2] === 'rebuild') {
-  run('bash', [
+  spawnSync('bash', [
     '-c',
     'git clean -xfd'
     + '&& git submodule foreach --recursive git clean -xfd'

@@ -1,4 +1,15 @@
 {
+  'target_defaults': {
+    'conditions': [
+      [
+        "'<!(node -p process.env.npm_config_coverage)'=='true'",
+        {
+          'cflags': ['--coverage'],
+          'libraries': ['--coverage']
+        }
+      ]
+    ]
+  },
   'targets': [
     {
       'target_name': 'csdk',
