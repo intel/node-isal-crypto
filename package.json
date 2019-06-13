@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/intel/node-isa-l_crypto.git"
+    "url": "git+https://github.com/intel/isal-crypto.js.git"
   },
   "keywords": [
     "crypto",
@@ -19,9 +19,9 @@
   "author": "Gabriel Schulhof <gabriel.schulhof@intel.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/intel/node-isa-l_crypto/issues"
+    "url": "https://github.com/intel/isal-crypto.js/issues"
   },
-  "homepage": "https://github.com/intel/node-isa-l_crypto#readme",
+  "homepage": "https://github.com/intel/isal-crypto.js#readme",
   "dependencies": {
     "bindings": "^1.5.0"
   },
