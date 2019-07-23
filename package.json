@@ -16,7 +16,7 @@
     "intel"
   ],
   "author": "Gabriel Schulhof <gabriel.schulhof@intel.com>",
-  "license": "BSD-3-Clause",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/intel/node-isa-l_crypto/issues"
   },
