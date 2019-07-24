@@ -1,15 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 const { Suite } = require('benchmark');
-const nodejsCrypto = require('crypto');
 const DataProducer = require('./DataProducer');
 const defaults = require('./defaults.json');
-const mbCrypto = require('..');
+const requireCrypto = require('./require-crypto');
 
 const options = Object.assign({}, defaults,
   process.argv[2] ? JSON.parse(process.argv[2]) : {});
 
-const crypto = options.runNodeJS ? nodejsCrypto : mbCrypto;
+const crypto = requireCrypto(options.runNodeJS);
 const cryptoMessage = options.runNodeJS ? 'nodejs' : 'mb';
 
 (new Suite())

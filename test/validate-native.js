@@ -3,7 +3,9 @@ if (process.argv[2] === '-c') {
 }
 
 const assert = require('assert');
-const native = require('../native');
+const native = (process.env.npm_config_package === 'true'
+  ? require('isa-l_crypto/native')
+  : require('../native'));
 
 const CONTEXT_RESET = 2;
 const MANAGER_SUBMIT = 3;

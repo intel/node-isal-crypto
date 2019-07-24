@@ -13,7 +13,14 @@ module.exports = {
     ecmaVersion: 2018,
   },
   settings: {
-    'import/core-modules': ['worker_threads']
+    'import/core-modules': [
+      'worker_threads',
+      'isa-l_crypto',
+      'isa-l_crypto/native',
+    ].concat(process.env.npm_config_package === 'true' ? [
+      './native',
+      '../native'
+    ]: [])
   },
   rules: {
     'arrow-parens': ['error', 'always'],

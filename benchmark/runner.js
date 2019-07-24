@@ -7,7 +7,7 @@ const fs = require('fs');
 const DataProducer = require('./DataProducer');
 
 module.exports = (options) => new Promise((accept) => {
-  const crypto = (options.runNodeJS ? require('crypto') : require('..'));
+  const crypto = require('./require-crypto')(options.runNodeJS);
 
   const results = {
     streamsStarted: 0,
