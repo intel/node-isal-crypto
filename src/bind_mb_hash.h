@@ -233,9 +233,9 @@ class MBHashAddon {
     // This is the surface read from and written to by `op()` to inform it as to
     // what JS wants to do.
     struct {
-      int32_t code;
-      int32_t context_idx;
-      int32_t flag;
+      int32_t code = -1;
+      int32_t context_idx = -1;
+      int32_t flag = -1;
     } op;
   } js;
 
