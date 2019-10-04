@@ -9,8 +9,9 @@ built-in `crypto` module, but it does not support synchronous operation.
 You need the followings in order to install `isa-l_crypto`:
 
 * `nasm` version 2.13.03 or later
+    * `yasm` version 1.3.0 or later on Windows
 * A C++ compiler
-* `make`
+* `make` on POSIX platforms
 * `python`
 * Node.js
 

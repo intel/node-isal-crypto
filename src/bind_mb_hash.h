@@ -42,15 +42,6 @@ template <
 class MBHashAddon {
  public:
 
-  MBHashAddon() {
-    ManagerInit(&manager);
-    for (size_t idx = 0; idx < lane_count; idx++) {
-      hash_ctx_init(&js.contexts[idx]);
-      available_indices[idx] = idx;
-    }
-    next_context_idx = lane_count - 1;
-  }
-
   inline void
   process_manager_result(ContextType* context) {
     // Convert hash from hardware to network byte order when it's complete.
@@ -159,6 +150,15 @@ class MBHashAddon {
   Init(napi_env env) {
     napi_value jsAddon, op, sizeofContext, maxLanes, sizeofJob,
         digestOffsetInContext;
+
+    // This would normally go into a constructor, but on Windows those don't run
+    // reliably on `thread_local` variables.
+    ManagerInit(&addon.manager);
+    for (size_t idx = 0; idx < lane_count; idx++) {
+      hash_ctx_init(&addon.js.contexts[idx]);
+      addon.available_indices[idx] = idx;
+    }
+    addon.next_context_idx = lane_count - 1;
 
     // Below we expose the JS portion of the addon data as well as some useful
     // sizes to JS. We use pointer arithmetic instead of `sizeof()` because some

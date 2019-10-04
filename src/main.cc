@@ -5,7 +5,10 @@
 
 // Convert a uint32_t-based digest from hardware byte order to network byte
 // order.
-static inline void
+#ifndef _WIN32
+static
+#endif  // !_WIN32
+inline void
 htonl_uint32(SHA256_HASH_CTX* context) {
   size_t idx;
   uint32_t result;
@@ -25,7 +28,10 @@ htonl_uint32(SHA256_HASH_CTX* context) {
 
 // Convert a uint64_t-based digest from hardware byte order to network byte
 // order.
-static inline void
+#ifndef _WIN32
+static
+#endif  // !_WIN32
+inline void
 htonl_uint64(SHA512_HASH_CTX* context) {
     int idx;
     uint64_t result;

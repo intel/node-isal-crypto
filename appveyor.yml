@@ -1,0 +1,29 @@
+init:
+  - git config --global core.autocrlf input
+
+shallow_clone: true
+
+environment:
+  matrix:
+    - nodejs_version: "8"
+    - nodejs_version: "10"
+    - nodejs_version: "12"
+
+platform:
+  - x64
+
+matrix:
+  fast_finish: true
+
+install:
+  - ps: Install-Product node $env:nodejs_version x64
+  - node --version
+  - npm --version
+
+test_script:
+  - ps: npm install -g "$(npm pack)"
+  - npm install --ignore-scripts
+  - npm link node-isal-crypto
+  - npm test --package
+
+build: off
