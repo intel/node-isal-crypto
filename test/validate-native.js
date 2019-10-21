@@ -32,7 +32,6 @@ Object.entries(native).forEach((entry) => {
     op[0] = 0;
     binding.op();
   }, {
-    name: 'RangeError',
     code: 'UNKNOWN_OPCODE'
   });
 
@@ -42,7 +41,6 @@ Object.entries(native).forEach((entry) => {
     op[1] = -1;
     binding.op();
   }, {
-    name: 'RangeError',
     code: 'CONTEXT_RESET_INDEX_OUT_OF_RANGE'
   });
 
@@ -53,7 +51,6 @@ Object.entries(native).forEach((entry) => {
     op[2] = -1;
     binding.op();
   }, {
-    name: 'RangeError',
     code: 'CONTEXT_RESET_FLAG_OUT_OF_RANGE'
   });
 
@@ -65,7 +62,6 @@ Object.entries(native).forEach((entry) => {
     op[2] = HASH_FIRST;
     binding.op(new Uint32Array(3));
   }, {
-    name: 'TypeError',
     code: 'CHUNK_MUST_BE_UINT8ARRAY'
   });
 });

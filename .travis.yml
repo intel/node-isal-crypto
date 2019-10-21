@@ -1,0 +1,30 @@
+sudo: false
+language: cpp
+
+matrix:
+  fast_finish: true
+  include:
+  - env: NODE_VERSION=10
+    os: linux
+    addons: &1
+      apt:
+        packages:
+          - nasm
+  - env: NODE_VERSION=12
+    os: linux
+    addons: *1
+
+install:
+- rm -rf ~/.nvm
+- wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.0/install.sh |
+  bash
+- source ~/.nvm/nvm.sh
+- nvm install ${NODE_VERSION}
+- node --version
+- npm --version
+- npm install -g $(npm pack)
+- npm install --ignore-scripts
+- npm link isa-l_crypto
+
+script:
+- npm test --package
